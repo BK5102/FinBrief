@@ -1,8 +1,8 @@
-# PortfolioPulse
+# FinBrief
 
 **A one-glance morning brief for your stock portfolio.**
 
-PortfolioPulse is a personal-use dashboard that ingests a user-defined stock portfolio, pulls daily financial news per ticker, scores each headline with [FinBERT](https://huggingface.co/ProsusAI/finbert), and surfaces a single urgency signal that tells you where to look first. It replaces 30+ minutes of manual scanning across financial news sites with a one-glance morning brief.
+FinBrief is a personal-use dashboard that ingests a user-defined stock portfolio, pulls daily financial news per ticker, scores each headline with [FinBERT](https://huggingface.co/ProsusAI/finbert), and surfaces a single urgency signal that tells you where to look first. It replaces 30+ minutes of manual scanning across financial news sites with a one-glance morning brief.
 
 > Example signal: *"3 of your 8 holdings have negative sentiment spikes today — here's why."*
 
