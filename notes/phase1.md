@@ -1,9 +1,27 @@
 # Phase 1 — Data & Model Spike: Notes
 
+## Current status (paused)
+
+Pipeline and multi-source fetcher complete; **validation step paused** while builder ramps on financial-sentiment labeling conventions. Phase 2 will not start until validation closes via one of the paths below.
+
 ## Exit criteria status
 
 - [x] Pipeline runs end-to-end for 5+ tickers in under 2 minutes (10 tickers, ~110s steady-state).
-- [ ] Sentiment labels manually sanity-checked on 30 headlines. CSV ready at `notes/sanity_check_headlines.csv` — pending human labels.
+- [ ] Sentiment labels validated. **Options:**
+  - **A.** Defer hand-labeling; rely on FinBERT's published validation, revisit with real Phase-2 data.
+  - **B.** Run pipeline against the Financial PhraseBank validation set and compute accuracy vs gold labels (objective, no manual work).
+  - **C.** Hand-label 30 headlines after the builder reviews FinBERT/PhraseBank labeling conventions (see "Topics to learn" below).
+
+## Topics to learn before option C
+
+1. Financial sentiment ≠ general sentiment — label from an investor's perspective ("does this signal good/bad for company value?").
+2. Positive / neutral / negative buckets across categories: earnings, analyst actions, corporate actions, operations, regulatory, macro.
+3. Specific terms whose financial meaning isn't obvious: beat/miss, guidance, YoY, EPS, buyback, dilution, insider buying/selling.
+4. Counterintuitive cases: layoffs often = positive (cost-cutting), reaction headlines ("stock falls 3%") usually = neutral.
+5. References:
+   - Financial PhraseBank paper (Malo et al., 2014) — https://arxiv.org/abs/1307.5336 — labeling conventions in section 3.
+   - FinBERT paper (Araci, 2019) — https://arxiv.org/abs/1908.10063.
+   - Investopedia on: earnings call, analyst upgrade, guidance, buyback, dilution.
 
 ## News sources evaluated
 
