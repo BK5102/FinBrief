@@ -21,6 +21,7 @@ from typing import Iterable
 
 import feedparser
 import requests
+import yfinance as yf
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +66,50 @@ def fetch_yahoo_rss(ticker: str, since: datetime | None = None) -> list[Headline
                 summary=_clean_summary(getattr(entry, "summary", "")),
                 url=getattr(entry, "link", ""),
                 source="yahoo_rss",
+                published_at=(published_dt or datetime.now(timezone.utc)).isoformat(),
+            )
+        )
+    return out
+
+
+def fetch_yfinance(ticker: str, since: datetime | None = None) -> list[Headline]:
+    """yfinance's Ticker.news endpoint. No API key required. Wraps the modern Yahoo news API."""
+    try:
+        items = yf.Ticker(ticker).news or []
+    except Exception as e:
+        log.warning("yfinance fetch failed for %s: %s", ticker, e)
+        return []
+
+    out: list[Headline] = []
+    for item in items:
+        content = item.get("content") or item
+        title = (content.get("title") or "").strip()
+        if not title:
+            continue
+
+        published_dt = _parse_iso(content.get("pubDate") or content.get("displayTime"))
+        if since is not None and published_dt is not None and published_dt < since:
+            continue
+
+        url = ""
+        for key in ("clickThroughUrl", "canonicalUrl"):
+            block = content.get(key) or {}
+            if isinstance(block, dict) and block.get("url"):
+                url = block["url"]
+                break
+        if not url:
+            url = content.get("link", "")
+
+        provider = content.get("provider") or {}
+        provider_name = provider.get("displayName") if isinstance(provider, dict) else ""
+
+        out.append(
+            Headline(
+                ticker=ticker,
+                title=title,
+                summary=(content.get("summary") or content.get("description") or "").strip(),
+                url=url,
+                source=f"yfinance:{provider_name}" if provider_name else "yfinance",
                 published_at=(published_dt or datetime.now(timezone.utc)).isoformat(),
             )
         )
@@ -121,6 +166,7 @@ def fetch_all_today(tickers: Iterable[str], finnhub_key: str | None = None) -> l
             continue
 
         batch: list[Headline] = []
+        batch.extend(fetch_yfinance(ticker, since=since))
         batch.extend(fetch_yahoo_rss(ticker, since=since))
         if finnhub_key:
             batch.extend(fetch_finnhub(ticker, finnhub_key, since=since))
@@ -133,6 +179,16 @@ def fetch_all_today(tickers: Iterable[str], finnhub_key: str | None = None) -> l
             results.append(h)
 
     return results
+
+
+def _parse_iso(s: str | None) -> datetime | None:
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
 
 
 def _parse_feed_time(entry) -> datetime | None:

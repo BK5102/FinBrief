@@ -40,3 +40,7 @@ models/
 .idea/
 *.swp
 .DS_Store
+
+# Pipeline output artifacts
+today*.json
+out/
