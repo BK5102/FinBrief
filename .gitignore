@@ -44,3 +44,6 @@ models/
 # Pipeline output artifacts
 today*.json
 out/
+
+# Local-only session memory (not for public repo)
+PROMPT.md
