@@ -4,6 +4,8 @@
 
 Pipeline and multi-source fetcher complete; **validation step paused** while builder ramps on financial-sentiment labeling conventions. Phase 2 will not start until validation closes via one of the paths below.
 
+**Recommended next move:** choose option B first. A public Financial PhraseBank benchmark gives an objective accuracy number without requiring the builder to become a financial-news labeler before the product can move forward.
+
 ## Exit criteria status
 
 - [x] Pipeline runs end-to-end for 5+ tickers in under 2 minutes (10 tickers, ~110s steady-state).
@@ -47,3 +49,10 @@ Pipeline and multi-source fetcher complete; **validation step paused** while bui
 - ✅ News API rate limits / coverage gaps → confirmed real on Yahoo RSS, mitigated by multi-source design.
 - ✅ FinBERT CPU latency → acceptable at ~0.5s/text; GPU/quantization not needed for daily runs.
 - ✅ FinBERT label drift on non-headline text → titles+short summaries score sensibly on spot-check; deeper validation pending the 30-headline labeling pass.
+
+## Next execution checklist
+
+1. Implement a small benchmark script for Financial PhraseBank.
+2. Run benchmark scoring through the existing `scorer.py` wrapper and record accuracy/confusion counts.
+3. If benchmark quality is acceptable, mark Phase 1 closed with validation caveats.
+4. Start Phase 2: SQLite schema, ingest persistence, daily aggregate calculation, and an initial seeded portfolio.

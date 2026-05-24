@@ -121,9 +121,9 @@ A single retail investor (the builder) holding **5 to 15 equities**, checking th
 
 | Layer       | Choice                                    |
 | ----------- | ----------------------------------------- |
-| Language    | Python 3.11+                              |
+| Language    | Python 3.12+                              |
 | ML Model    | FinBERT (`ProsusAI/finbert`) via Hugging Face `transformers` |
-| News Sources | Yahoo Finance RSS, Finnhub, NewsAPI (pick 2) |
+| News Sources | `yfinance` primary, Yahoo Finance RSS backup, Finnhub optional when `FINNHUB_API_KEY` is set |
 | Storage     | SQLite                                    |
 | Scheduling  | cron / APScheduler                        |
 | Backend     | FastAPI                                   |
@@ -132,6 +132,41 @@ A single retail investor (the builder) holding **5 to 15 equities**, checking th
 
 ---
 
+## Current Implementation
+
+Phase 1 has a working CLI pipeline:
+
+- Fetches today's headlines per ticker from `yfinance`, Yahoo Finance RSS, and Finnhub when configured.
+- Deduplicates articles by URL.
+- Scores headline text with `ProsusAI/finbert`.
+- Emits JSON grouped by ticker with source, timestamp, sentiment label, confidence, and full class probabilities.
+
+Main entrypoint:
+
+```powershell
+$env:PYTHONPATH = "src"
+.venv\Scripts\python.exe -m finbrief.pipeline --tickers AAPL,MSFT,NVDA --pretty --out today.json
+```
+
+Optional Finnhub setup:
+
+```powershell
+Copy-Item .env.example .env
+# Then edit .env and set FINNHUB_API_KEY=...
+```
+
+---
+
 ## Status
 
-Project initialized. Phase 1 work begins next.
+Phase 1 is functionally complete and paused at validation.
+
+- Done: CLI pipeline, multi-source fetchers, FinBERT scoring, 30-row sanity-check CSV.
+- Pending: choose a validation path before Phase 2.
+- Recommended next validation path: run an objective Financial PhraseBank benchmark first, then start Phase 2 with SQLite persistence.
+
+Validation options:
+
+- **A. Defer hand-labeling:** trust published FinBERT validation for now and revisit after collecting Phase 2 history.
+- **B. Public benchmark:** score a labeled Financial PhraseBank sample and compute accuracy against gold labels. This avoids requiring domain knowledge up front.
+- **C. Manual sanity check:** hand-label `notes/sanity_check_headlines.csv` after reviewing financial-sentiment labeling conventions in `notes/phase1.md`.
