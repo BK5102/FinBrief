@@ -224,6 +224,7 @@ Local endpoints:
 - `http://127.0.0.1:8780/summary` — portfolio summary JSON
 - `http://127.0.0.1:8780/ticker/NVDA` — ticker detail JSON
 - `http://127.0.0.1:8780/ticker/NVDA/view` — ticker drill-down page with 14-day chart and headlines
+- `POST http://127.0.0.1:8780/refresh` — start a manual background refresh
 - `http://127.0.0.1:8780/refresh/status` — manual refresh status JSON
 - `http://127.0.0.1:8780/docs` — FastAPI OpenAPI docs
 

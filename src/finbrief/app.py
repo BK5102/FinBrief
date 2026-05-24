@@ -81,6 +81,16 @@ def start_refresh(request: Request):
     return {"started": started, "refresh": refresh_status()}
 
 
+@app.get("/refresh")
+def refresh_landing(request: Request):
+    if "text/html" in request.headers.get("accept", ""):
+        return RedirectResponse("/", status_code=303)
+    return {
+        "detail": "Use POST /refresh to start a manual refresh. Use GET /refresh/status to inspect status.",
+        "refresh": refresh_status(),
+    }
+
+
 @app.get("/refresh/status")
 def refresh_status() -> dict:
     with REFRESH_LOCK:
