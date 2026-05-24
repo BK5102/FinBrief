@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}FinBrief{% endblock %}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main>
+    <header class="page-header">
+      <a class="brand" href="/">FinBrief</a>
+      <span class="meta">{% block subtitle %}Morning brief{% endblock %}</span>
+    </header>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

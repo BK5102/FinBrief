@@ -95,6 +95,19 @@ def get_ticker_detail(conn: sqlite3.Connection, ticker: str, aggregate_date: str
     }
 
 
+def get_recent_runs(conn: sqlite3.Connection, limit: int = 5) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT id, completed_at, status, articles_fetched, articles_scored, fetch_seconds, score_seconds
+        FROM pipeline_runs
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (limit,),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def _aggregate_by_ticker(conn: sqlite3.Connection, aggregate_date: str | None) -> dict[str, dict]:
     if not aggregate_date:
         return {}

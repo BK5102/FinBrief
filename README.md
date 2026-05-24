@@ -226,6 +226,7 @@ Phase 1 is functionally complete and paused at validation. Phase 2 implementatio
 - Done: CLI pipeline, multi-source fetchers, FinBERT scoring, 30-row sanity-check CSV.
 - Done in Phase 2: SQLite schema, persistence helpers, daily aggregate recomputation, initial negative-spike query helper, optional `--db` pipeline persistence, portfolio management script, DB inspection script, Finnhub backfill script, read-side query helpers, daily-run script, local scheduler script.
 - Started in Phase 3: FastAPI service with `/portfolio`, `/summary`, `/ticker/{symbol}`, `/ticker/{symbol}/view`, `/health`, and dashboard pages for portfolio summary and ticker drill-down.
+- UI structure: FastAPI routes in `src/finbrief/app.py`, Jinja templates in `templates/`, and shared styling in `static/styles.css`.
 - Pending for Phase 1 closure: choose and run a validation path.
 - Recommended next validation path: run an objective Financial PhraseBank benchmark, then document the result and caveats.
 

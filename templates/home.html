@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}FinBrief{% endblock %}
+{% block subtitle %}Morning brief - {{ summary.aggregate_date or "no data" }}{% endblock %}
+
+{% block content %}
+  {% if summary.negative_spike_count %}
+    <section class="banner danger">
+      <div><strong>{{ summary.negative_spike_count }} of {{ summary.active_tickers|length }} holdings</strong> show negative sentiment spikes for {{ summary.aggregate_date }}.</div>
+      <div class="banner-links">
+        {% for spike in summary.negative_spikes %}
+          <a href="/ticker/{{ spike.ticker }}/view">{{ spike.ticker }}</a>
+        {% endfor %}
+      </div>
+    </section>
+  {% else %}
+    <section class="banner calm"><strong>No negative sentiment spikes</strong> detected for {{ summary.aggregate_date or "latest date" }}.</section>
+  {% endif %}
+
+  <section class="toolbar">
+    <form method="post" action="/portfolio">
+      <div>
+        <label for="tickers">Portfolio</label>
+        <input id="tickers" name="tickers" value="{{ portfolio_value }}" autocomplete="off">
+      </div>
+      <button type="submit">Update</button>
+    </form>
+    <div class="toolbar-links">
+      <a class="button ghost" href="/summary">Summary JSON</a>
+      <a class="button ghost" href="/docs">API Docs</a>
+    </div>
+  </section>
+
+  <section class="run-panel">
+    <div>
+      <h3>Run Status</h3>
+      {% if summary.last_run %}
+        <p class="meta">Last run #{{ summary.last_run.id }} - {{ summary.last_run.completed_at }} - {{ summary.last_run.articles_scored }} scored - fetch {{ summary.last_run.fetch_seconds }}s - score {{ summary.last_run.score_seconds }}s</p>
+      {% else %}
+        <p class="meta">No pipeline runs recorded.</p>
+      {% endif %}
+    </div>
+    <code>.venv\Scripts\python.exe scripts\daily_run.py --db data\finbrief.db</code>
+  </section>
+
+  <section class="grid" aria-label="Ticker summary cards">
+    {% for holding in holding_cards %}
+      <a class="card {{ holding.tone }}" href="/ticker/{{ holding.ticker }}/view">
+        <div class="card-head">
+          <h2>{{ holding.ticker }}</h2>
+          {% if holding.is_negative_spike %}<span class="flag">Spike</span>{% endif %}
+        </div>
+        {% if holding.aggregate %}
+          <p class="score">{{ holding.score_text }}</p>
+          <p>{{ holding.aggregate.headline_count }} headlines</p>
+          <p>{{ holding.aggregate.positive_count }}/{{ holding.aggregate.neutral_count }}/{{ holding.aggregate.negative_count }} pos/neu/neg</p>
+          <p>{{ holding.aggregate.high_conf_negative_count }} high-confidence negative</p>
+        {% else %}
+          <p>No headlines for {{ summary.aggregate_date or "latest date" }}</p>
+        {% endif %}
+      </a>
+    {% endfor %}
+  </section>
+
+  {% for spike in summary.negative_spikes %}
+    <section class="panel">
+      <h3>{{ spike.ticker }}: why flagged?</h3>
+      <ul>
+        {% for headline in spike.responsible_headlines[:5] %}
+          <li><span>{{ "%.3f"|format(headline.confidence) }}</span> <a href="{{ headline.url }}">{{ headline.title }}</a></li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
+
+  <section class="panel">
+    <h3>Recent Runs</h3>
+    <table>
+      <thead><tr><th>ID</th><th>Completed</th><th>Status</th><th>Fetched</th><th>Scored</th><th>Fetch</th><th>Score</th></tr></thead>
+      <tbody>
+        {% for run in recent_runs %}
+          <tr>
+            <td>{{ run.id }}</td>
+            <td>{{ run.completed_at }}</td>
+            <td>{{ run.status }}</td>
+            <td>{{ run.articles_fetched }}</td>
+            <td>{{ run.articles_scored }}</td>
+            <td>{{ run.fetch_seconds }}s</td>
+            <td>{{ run.score_seconds }}s</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

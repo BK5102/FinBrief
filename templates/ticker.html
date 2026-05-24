@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}{{ detail.ticker }} - FinBrief{% endblock %}
+{% block subtitle %}Ticker drill-down{% endblock %}
+
+{% block content %}
+  <p><a class="button ghost" href="/">Back to portfolio</a></p>
+  <section class="ticker-head">
+    <div>
+      <h2>{{ detail.ticker }}</h2>
+      <p class="meta">Latest article date: {{ detail.aggregate_date or "no data" }}</p>
+    </div>
+    <a class="button ghost" href="/ticker/{{ detail.ticker }}">JSON</a>
+  </section>
+
+  <section class="panel">
+    <h3>14-day sentiment path</h3>
+    {% if chart.points %}
+      <div class="chart-wrap">
+        <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img" aria-label="Weighted sentiment chart">
+          <line class="zero" x1="{{ chart.pad }}" y1="{{ chart.zero_y }}" x2="{{ chart.width - chart.pad }}" y2="{{ chart.zero_y }}"></line>
+          <polyline points="{{ chart.points }}"></polyline>
+          {% for dot in chart.dots %}
+            <circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="4"></circle>
+          {% endfor %}
+        </svg>
+        <div class="chart-labels">
+          {% for label in chart.labels %}<span>{{ label }}</span>{% endfor %}
+        </div>
+      </div>
+    {% else %}
+      <p class="meta">No aggregate history yet.</p>
+    {% endif %}
+
+    <table>
+      <thead><tr><th>Date</th><th>Score</th><th>Headlines</th><th>Pos/Neu/Neg</th></tr></thead>
+      <tbody>
+        {% for row in aggregate_rows %}
+          <tr>
+            <td>{{ row.aggregate_date }}</td>
+            <td>{{ "%+.3f"|format(row.weighted_score) }}</td>
+            <td>{{ row.headline_count }}</td>
+            <td>{{ row.positive_count }}/{{ row.neutral_count }}/{{ row.negative_count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="headline-list">
+    <h3>Headlines driving today's signal</h3>
+    {% for headline in detail.headlines %}
+      <article class="headline {{ headline.label }}">
+        <div>
+          <span class="badge">{{ headline.label }} {{ "%.3f"|format(headline.confidence) }}</span>
+          <span class="meta">{{ headline.source }} - {{ headline.published_at }}</span>
+        </div>
+        <h3><a href="{{ headline.url }}">{{ headline.title }}</a></h3>
+        <p>{{ headline.summary }}</p>
+      </article>
+    {% else %}
+      <p>No headlines for the latest aggregate date.</p>
+    {% endfor %}
+  </section>
+{% endblock %}
