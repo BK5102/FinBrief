@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import argparse
 import html
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
 from finbrief.db import connect, find_negative_spikes, get_negative_headlines, list_active_tickers
 
