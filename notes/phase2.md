@@ -23,7 +23,10 @@ Phase 2 implementation has started. The one-shot pipeline can now optionally per
   - Stores the active portfolio in SQLite.
   - Supports `set`, `add`, `remove`, and `list`.
 - `scripts/inspect_db.py`
-  - Prints table counts, latest aggregate rows, and negative-spike results.
+  - Prints table counts, latest aggregate rows, negative-spike results, and responsible high-confidence negative headlines.
+- `scripts/backfill_finnhub.py`
+  - Backfills historical date windows from Finnhub into SQLite.
+  - Requires `FINNHUB_API_KEY` in local `.env`.
 
 ## SQLite schema
 
@@ -93,6 +96,13 @@ $env:PYTHONPATH = "src"
 .venv\Scripts\python.exe scripts\inspect_db.py --db data\finbrief.db
 ```
 
+Backfill from Finnhub:
+
+```powershell
+$env:PYTHONPATH = "src"
+.venv\Scripts\python.exe scripts\backfill_finnhub.py --db data\finbrief.db --days 7
+```
+
 ## First real persisted run
 
 Run date: 2026-05-23 local / 2026-05-24 UTC.
@@ -104,11 +114,27 @@ Run date: 2026-05-23 local / 2026-05-24 UTC.
 - Zero-headline tickers for that UTC window: `AAPL`, `MSFT`, `JPM`
 - Negative spikes: 0 (expected with only one aggregate day; rolling history is not populated yet)
 
+## First 7-day Finnhub backfill
+
+Run date: 2026-05-23 local.
+
+- Window: 2026-05-18 through 2026-05-24 UTC
+- Tickers: active DB portfolio (`AAPL,JPM,MSFT,NVDA,TSLA`)
+- Fetched/scored rows: 1,137
+- Unique persisted headlines/scores after dedupe: 1,030
+- Aggregate dates: 2026-05-18 through 2026-05-24
+- Daily aggregate rows: 25
+- Latest-date negative spikes: 1 (`NVDA`)
+- CPU scoring time: ~296 seconds
+
+Follow-up finding: the first inspection showed the same syndicated NVDA headline counted through yfinance, Yahoo RSS, and Finnhub. Dedupe now uses ticker/date/normalized-title rather than URL, because finance syndication often produces different source URLs for the same story.
+
 ## Next execution checklist
 
 1. Run the PhraseBank benchmark once a labeled CSV is available.
 2. Run a real persisted pipeline pass with `--db data\finbrief.db`. **Done once.**
 3. Inspect `pipeline_runs`, `headlines`, `scores`, and `daily_aggregates`. **Done via `scripts/inspect_db.py`.**
 4. Add portfolio management commands or a tiny seed script for active tickers. **Done via `scripts/portfolio.py`.**
-5. Add a backfill path. Finnhub can support historical company-news date windows once the API key is confirmed; Yahoo-backed sources are today-oriented and less suitable for backfill.
+5. Add a backfill path. **Implemented:** `scripts/backfill_finnhub.py` supports Finnhub historical windows once `FINNHUB_API_KEY` is present.
 6. Add scheduler entrypoint after persistence is verified.
+7. Add summary/query helpers for dashboard endpoints (`/summary`, `/ticker/{symbol}`) using the persisted aggregates and responsible headlines.

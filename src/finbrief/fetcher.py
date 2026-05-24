@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone, timedelta
 from typing import Iterable
@@ -121,6 +122,11 @@ def fetch_finnhub(ticker: str, api_key: str, since: datetime | None = None) -> l
     start, end = _today_utc_bounds()
     if since is not None:
         start = since
+    return fetch_finnhub_range(ticker, api_key, start=start, end=end)
+
+
+def fetch_finnhub_range(ticker: str, api_key: str, start: datetime, end: datetime) -> list[Headline]:
+    """Finnhub company-news endpoint for a specific inclusive date range."""
     params = {
         "symbol": ticker,
         "from": start.date().isoformat(),
@@ -139,7 +145,9 @@ def fetch_finnhub(ticker: str, api_key: str, since: datetime | None = None) -> l
     for item in items:
         ts = item.get("datetime")
         published_dt = datetime.fromtimestamp(ts, tz=timezone.utc) if ts else None
-        if since is not None and published_dt is not None and published_dt < since:
+        if published_dt is not None and published_dt < start:
+            continue
+        if published_dt is not None and published_dt > end:
             continue
         out.append(
             Headline(
@@ -172,13 +180,25 @@ def fetch_all_today(tickers: Iterable[str], finnhub_key: str | None = None) -> l
             batch.extend(fetch_finnhub(ticker, finnhub_key, since=since))
 
         for h in batch:
-            key = h.url or f"{h.source}:{h.title}"
+            key = headline_dedupe_key(h)
             if key in seen_urls or not h.title:
                 continue
             seen_urls.add(key)
             results.append(h)
 
     return results
+
+
+def headline_dedupe_key(headline: Headline) -> str:
+    """Prefer title/date dedupe because syndicated finance stories often have different source URLs."""
+    normalized_title = normalize_title(headline.title)
+    if normalized_title:
+        return f"{headline.ticker.upper()}:{headline.published_at[:10]}:{normalized_title}"
+    return headline.url or f"{headline.source}:{headline.title}"
+
+
+def normalize_title(title: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", (title or "").lower()).strip()
 
 
 def _parse_iso(s: str | None) -> datetime | None:
@@ -202,6 +222,5 @@ def _parse_feed_time(entry) -> datetime | None:
 
 
 def _clean_summary(html_or_text: str) -> str:
-    import re
     text = re.sub(r"<[^>]+>", " ", html_or_text or "")
     return re.sub(r"\s+", " ", text).strip()

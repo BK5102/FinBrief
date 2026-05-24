@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from finbrief.db import connect, find_negative_spikes
+from finbrief.db import connect, find_negative_spikes, get_negative_headlines
 
 
 def main() -> int:
@@ -50,6 +50,11 @@ def main() -> int:
                 f"{spike['ticker']}: score={spike['weighted_score']:.4f}, "
                 f"threshold={spike['threshold']:.4f}, high_conf_neg={spike['high_conf_negative_count']}"
             )
+            for headline in get_negative_headlines(conn, spike["ticker"], aggregate_date):
+                print(
+                    f"  - [{headline['confidence']:.3f}] {headline['title']} "
+                    f"({headline['source']}, {headline['published_at']})"
+                )
     return 0
 
 

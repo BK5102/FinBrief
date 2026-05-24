@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Sequence
 
-from finbrief.fetcher import Headline
+from finbrief.fetcher import Headline, headline_dedupe_key
 from finbrief.scorer import MODEL_ID
 
 SENTIMENT_VALUES = {"positive": 1.0, "neutral": 0.0, "negative": -1.0}
@@ -367,8 +367,30 @@ def find_negative_spikes(
     return spikes
 
 
+def get_negative_headlines(
+    conn: sqlite3.Connection,
+    ticker: str,
+    aggregate_date: str,
+    min_confidence: float = 0.7,
+) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT h.title, h.url, h.source, h.published_at, s.label, s.confidence
+        FROM headlines h
+        JOIN scores s ON s.headline_id = h.id
+        WHERE h.ticker = ?
+          AND substr(h.published_at, 1, 10) = ?
+          AND s.label = 'negative'
+          AND s.confidence >= ?
+        ORDER BY s.confidence DESC, h.published_at DESC
+        """,
+        (ticker.upper(), aggregate_date, min_confidence),
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def headline_fingerprint(headline: Headline) -> str:
-    basis = headline.url or f"{headline.ticker}|{headline.source}|{headline.title}"
+    basis = headline_dedupe_key(headline)
     return hashlib.sha256(basis.encode("utf-8")).hexdigest()
 
 

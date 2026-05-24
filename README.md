@@ -177,6 +177,13 @@ $env:PYTHONPATH = "src"
 .venv\Scripts\python.exe scripts\inspect_db.py --db data\finbrief.db
 ```
 
+Backfill 7 days from Finnhub:
+
+```powershell
+$env:PYTHONPATH = "src"
+.venv\Scripts\python.exe scripts\backfill_finnhub.py --db data\finbrief.db --days 7
+```
+
 Optional Finnhub setup:
 
 ```powershell
@@ -191,7 +198,7 @@ Copy-Item .env.example .env
 Phase 1 is functionally complete and paused at validation. Phase 2 implementation has started.
 
 - Done: CLI pipeline, multi-source fetchers, FinBERT scoring, 30-row sanity-check CSV.
-- Done in Phase 2: SQLite schema, persistence helpers, daily aggregate recomputation, initial negative-spike query helper, optional `--db` pipeline persistence, portfolio management script, DB inspection script.
+- Done in Phase 2: SQLite schema, persistence helpers, daily aggregate recomputation, initial negative-spike query helper, optional `--db` pipeline persistence, portfolio management script, DB inspection script, Finnhub backfill script.
 - Pending for Phase 1 closure: choose and run a validation path.
 - Recommended next validation path: run an objective Financial PhraseBank benchmark, then document the result and caveats.
 
