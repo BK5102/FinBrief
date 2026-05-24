@@ -218,6 +218,12 @@ Clean duplicate or weakly related existing headlines:
 .venv\Scripts\python.exe scripts\clean_duplicate_headlines.py --db data\finbrief.db --drop-irrelevant
 ```
 
+Run lightweight smoke tests:
+
+```powershell
+.venv\Scripts\python.exe scripts\smoke_test.py --db data\finbrief.db --base-url http://127.0.0.1:8783
+```
+
 Run the FastAPI dashboard/API:
 
 ```powershell

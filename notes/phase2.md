@@ -167,6 +167,8 @@ Second follow-up finding: a real manual refresh showed many provider-tagged stor
 
 After applying `scripts/clean_duplicate_headlines.py --drop-irrelevant` locally, the DB dropped from 1,139 to 468 headlines and latest-date negative spikes dropped from 2 to 1. NVDA remains flagged with 17 relevant latest-date headlines and 3 high-confidence negative headlines.
 
+`scripts/smoke_test.py` now checks local DB shape, query helpers, relevance filtering, cleanup dry-run, and already-running FastAPI endpoints without triggering live fetches or FinBERT inference.
+
 ## Next execution checklist
 
 1. Run the PhraseBank benchmark once a labeled CSV is available.
