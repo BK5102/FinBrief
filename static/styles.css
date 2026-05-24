@@ -171,6 +171,10 @@ button,
   color: #b42318;
 }
 
+.status:empty {
+  display: none;
+}
+
 button:disabled {
   cursor: progress;
   opacity: 0.65;

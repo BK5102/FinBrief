@@ -228,6 +228,8 @@ Local endpoints:
 - `http://127.0.0.1:8780/refresh/status` — manual refresh status JSON
 - `http://127.0.0.1:8780/docs` — FastAPI OpenAPI docs
 
+The dashboard **Run Refresh** button starts the background refresh without leaving the page, polls status, and reloads the dashboard when the run completes.
+
 Run the daily pipeline once using the active SQLite portfolio:
 
 ```powershell
