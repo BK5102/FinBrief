@@ -32,7 +32,7 @@ REFRESH_STATE = {
     "error": None,
 }
 
-app = FastAPI(title="FinBrief", version="0.1.0")
+app = FastAPI(title="FinBrief", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
 
 

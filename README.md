@@ -233,14 +233,12 @@ Run the FastAPI dashboard/API:
 Local endpoints:
 
 - `http://127.0.0.1:8780/` — dashboard page with urgency banner, portfolio editor, and ticker grid
-- `http://127.0.0.1:8780/summary` — portfolio summary JSON
-- `http://127.0.0.1:8780/ticker/NVDA` — ticker detail JSON
 - `http://127.0.0.1:8780/ticker/NVDA/view` — ticker drill-down page with 14-day chart and headlines
 - `POST http://127.0.0.1:8780/refresh` — start a manual background refresh
-- `http://127.0.0.1:8780/refresh/status` — manual refresh status JSON
-- `http://127.0.0.1:8780/docs` — FastAPI OpenAPI docs
 
 The dashboard **Run Refresh** button starts the background refresh without leaving the page, polls status, and reloads the dashboard when the run completes.
+
+Developer JSON endpoints (`/summary`, `/ticker/{symbol}`, and `/refresh/status`) remain available for smoke tests and future integrations, but they are intentionally not exposed as dashboard links.
 
 Run the daily pipeline once using the active SQLite portfolio:
 
@@ -276,7 +274,7 @@ Phase 1 is functionally complete and paused at validation. Phase 2 implementatio
 
 - Done: CLI pipeline, multi-source fetchers, FinBERT scoring, 30-row sanity-check CSV.
 - Done in Phase 2: SQLite schema, persistence helpers, daily aggregate recomputation, initial negative-spike query helper, optional `--db` pipeline persistence, portfolio management script, DB inspection script, Finnhub backfill script, read-side query helpers, daily-run script, local scheduler script.
-- Started in Phase 3: FastAPI service with `/portfolio`, `/summary`, `/ticker/{symbol}`, `/ticker/{symbol}/view`, `/health`, and dashboard pages for portfolio summary and ticker drill-down.
+- Started in Phase 3: FastAPI service with `/portfolio`, `/summary`, `/ticker/{symbol}`, `/ticker/{symbol}/view`, `/refresh`, `/refresh/status`, `/health`, and dashboard pages for portfolio summary and ticker drill-down. Developer docs are disabled in the local app because they are not part of the user-facing product.
 - UI structure: FastAPI routes in `src/finbrief/app.py`, Jinja templates in `templates/`, and shared styling in `static/styles.css`.
 - Pending for Phase 1 closure: choose and run a validation path.
 - Recommended next validation path: run an objective Financial PhraseBank benchmark, then document the result and caveats.

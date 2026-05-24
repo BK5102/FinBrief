@@ -38,7 +38,8 @@ Phase 2 implementation has started. The one-shot pipeline can now optionally per
   - Useful for development; Windows Task Scheduler remains the better unattended production option.
 - `src/finbrief/app.py`
   - FastAPI app using the shared query helpers.
-  - Provides `/portfolio`, `/summary`, `/ticker/{symbol}`, `/ticker/{symbol}/view`, `/refresh`, `/refresh/status`, `/health`, `/docs`, and dashboard pages at `/` plus ticker drill-down URLs.
+  - Provides `/portfolio`, `/summary`, `/ticker/{symbol}`, `/ticker/{symbol}/view`, `/refresh`, `/refresh/status`, `/health`, and dashboard pages at `/` plus ticker drill-down URLs.
+  - FastAPI docs are disabled because raw API documentation is not part of the user-facing product scope.
 - `templates/`
   - Jinja templates for the dashboard shell, home view, and ticker drill-down view.
 - `static/styles.css`
