@@ -141,6 +141,41 @@ Phase 1 has a working CLI pipeline:
 - Scores headline text with `ProsusAI/finbert`.
 - Emits JSON grouped by ticker with source, timestamp, sentiment label, confidence, and full class probabilities.
 
+---
+
+## Local Quickstart
+
+```powershell
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+Edit `.env` and set `FINNHUB_API_KEY` if you want Finnhub and historical backfill.
+
+Seed a local portfolio:
+
+```powershell
+$env:PYTHONPATH = "src"
+.venv\Scripts\python.exe scripts\portfolio.py --db data\finbrief.db set AAPL,MSFT,NVDA,JPM,TSLA
+```
+
+Backfill enough history for spike detection:
+
+```powershell
+$env:PYTHONPATH = "src"
+.venv\Scripts\python.exe scripts\backfill_finnhub.py --db data\finbrief.db --days 7
+```
+
+Run the dashboard:
+
+```powershell
+.venv\Scripts\python.exe -m uvicorn finbrief.app:app --app-dir src --host 127.0.0.1 --port 8780
+```
+
+Open `http://127.0.0.1:8780/`.
+
 Main entrypoint:
 
 ```powershell
