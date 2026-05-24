@@ -12,7 +12,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from finbrief.db import connect, list_active_tickers, persist_pipeline_result
-from finbrief.fetcher import fetch_finnhub_range, headline_dedupe_key
+from finbrief.fetcher import fetch_finnhub_range, headline_dedupe_key, is_relevant_to_ticker
 from finbrief.runner import score_text
 from finbrief.scorer import score_texts
 
@@ -97,7 +97,7 @@ def _dedupe_headlines(headlines):
     deduped = []
     for headline in headlines:
         key = headline_dedupe_key(headline)
-        if key in seen:
+        if key in seen or not is_relevant_to_ticker(headline):
             continue
         seen.add(key)
         deduped.append(headline)

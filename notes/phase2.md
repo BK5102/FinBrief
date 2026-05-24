@@ -163,6 +163,10 @@ Run date: 2026-05-23 local.
 
 Follow-up finding: the first inspection showed the same syndicated NVDA headline counted through yfinance, Yahoo RSS, and Finnhub. Dedupe now uses ticker/date/normalized-title rather than URL, because finance syndication often produces different source URLs for the same story.
 
+Second follow-up finding: a real manual refresh showed many provider-tagged stories were only weakly related to the target ticker, which can inflate negative spikes. The fetch path now applies a conservative ticker/company alias relevance filter for common holdings, and `scripts/clean_duplicate_headlines.py` removes older duplicate rows already present in SQLite.
+
+After applying `scripts/clean_duplicate_headlines.py --drop-irrelevant` locally, the DB dropped from 1,139 to 468 headlines and latest-date negative spikes dropped from 2 to 1. NVDA remains flagged with 17 relevant latest-date headlines and 3 high-confidence negative headlines.
+
 ## Next execution checklist
 
 1. Run the PhraseBank benchmark once a labeled CSV is available.

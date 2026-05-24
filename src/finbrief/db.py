@@ -256,6 +256,10 @@ def recompute_daily_aggregate(conn: sqlite3.Connection, ticker: str, aggregate_d
     ).fetchall()
 
     if not rows:
+        conn.execute(
+            "DELETE FROM daily_aggregates WHERE ticker = ? AND aggregate_date = ?",
+            (ticker.upper(), aggregate_date),
+        )
         return
 
     weighted_total = 0.0

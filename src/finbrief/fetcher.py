@@ -26,6 +26,20 @@ import yfinance as yf
 
 log = logging.getLogger(__name__)
 
+TICKER_ALIASES = {
+    "AAPL": ("aapl", "apple", "iphone", "ipad", "mac", "app store"),
+    "AMZN": ("amzn", "amazon", "aws", "prime video"),
+    "GOOGL": ("googl", "google", "alphabet", "waymo", "youtube", "gemini"),
+    "GOOG": ("goog", "google", "alphabet", "waymo", "youtube", "gemini"),
+    "JPM": ("jpm", "jpmorgan", "jp morgan", "jpmorgan chase", "chase"),
+    "KO": ("ko", "coca cola", "coca-cola"),
+    "META": ("meta", "facebook", "instagram", "whatsapp", "threads"),
+    "MSFT": ("msft", "microsoft", "azure", "windows", "xbox", "openai"),
+    "NVDA": ("nvda", "nvidia", "jensen huang", "geforce", "cuda"),
+    "TSLA": ("tsla", "tesla", "elon musk", "cybertruck", "model y", "model 3"),
+    "V": ("visa", "nyse v", "v stock"),
+}
+
 
 @dataclass
 class Headline:
@@ -180,6 +194,8 @@ def fetch_all_today(tickers: Iterable[str], finnhub_key: str | None = None) -> l
             batch.extend(fetch_finnhub(ticker, finnhub_key, since=since))
 
         for h in batch:
+            if not is_relevant_to_ticker(h):
+                continue
             key = headline_dedupe_key(h)
             if key in seen_urls or not h.title:
                 continue
@@ -195,6 +211,12 @@ def headline_dedupe_key(headline: Headline) -> str:
     if normalized_title:
         return f"{headline.ticker.upper()}:{headline.published_at[:10]}:{normalized_title}"
     return headline.url or f"{headline.source}:{headline.title}"
+
+
+def is_relevant_to_ticker(headline: Headline) -> bool:
+    aliases = TICKER_ALIASES.get(headline.ticker.upper(), (headline.ticker.lower(),))
+    text = normalize_title(f"{headline.title} {headline.summary} {headline.url}")
+    return any(normalize_title(alias) in text for alias in aliases)
 
 
 def normalize_title(title: str) -> str:

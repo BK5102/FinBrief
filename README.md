@@ -212,6 +212,12 @@ $env:PYTHONPATH = "src"
 .venv\Scripts\python.exe scripts\inspect_db.py --db data\finbrief.db
 ```
 
+Clean duplicate or weakly related existing headlines:
+
+```powershell
+.venv\Scripts\python.exe scripts\clean_duplicate_headlines.py --db data\finbrief.db --drop-irrelevant
+```
+
 Run the FastAPI dashboard/API:
 
 ```powershell
