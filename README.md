@@ -177,6 +177,19 @@ $env:PYTHONPATH = "src"
 .venv\Scripts\python.exe scripts\inspect_db.py --db data\finbrief.db
 ```
 
+Run the FastAPI dashboard/API:
+
+```powershell
+.venv\Scripts\python.exe -m uvicorn finbrief.app:app --app-dir src --host 127.0.0.1 --port 8780
+```
+
+Local endpoints:
+
+- `http://127.0.0.1:8780/` — dashboard page
+- `http://127.0.0.1:8780/summary` — portfolio summary JSON
+- `http://127.0.0.1:8780/ticker/NVDA` — ticker detail JSON
+- `http://127.0.0.1:8780/docs` — FastAPI OpenAPI docs
+
 Run the daily pipeline once using the active SQLite portfolio:
 
 ```powershell
@@ -211,6 +224,7 @@ Phase 1 is functionally complete and paused at validation. Phase 2 implementatio
 
 - Done: CLI pipeline, multi-source fetchers, FinBERT scoring, 30-row sanity-check CSV.
 - Done in Phase 2: SQLite schema, persistence helpers, daily aggregate recomputation, initial negative-spike query helper, optional `--db` pipeline persistence, portfolio management script, DB inspection script, Finnhub backfill script, read-side query helpers, daily-run script, local scheduler script.
+- Started in Phase 3: FastAPI service with `/portfolio`, `/summary`, `/ticker/{symbol}`, `/health`, and a lightweight dashboard page.
 - Pending for Phase 1 closure: choose and run a validation path.
 - Recommended next validation path: run an objective Financial PhraseBank benchmark, then document the result and caveats.
 

@@ -36,6 +36,9 @@ Phase 2 implementation has started. The one-shot pipeline can now optionally per
 - `scripts/schedule_daily.py`
   - Lightweight local scheduler that calls `daily_run.py` at a configured wall-clock time.
   - Useful for development; Windows Task Scheduler remains the better unattended production option.
+- `src/finbrief/app.py`
+  - FastAPI app using the shared query helpers.
+  - Provides `/portfolio`, `/summary`, `/ticker/{symbol}`, `/health`, `/docs`, and a lightweight dashboard page at `/`.
 
 ## SQLite schema
 
@@ -117,6 +120,12 @@ Run a local scheduler:
 .venv\Scripts\python.exe scripts\schedule_daily.py --db data\finbrief.db --time 07:00
 ```
 
+Run FastAPI:
+
+```powershell
+.venv\Scripts\python.exe -m uvicorn finbrief.app:app --app-dir src --host 127.0.0.1 --port 8780
+```
+
 Backfill from Finnhub:
 
 ```powershell
@@ -159,4 +168,5 @@ Follow-up finding: the first inspection showed the same syndicated NVDA headline
 5. Add a backfill path. **Implemented:** `scripts/backfill_finnhub.py` supports Finnhub historical windows once `FINNHUB_API_KEY` is present.
 6. Add scheduler entrypoint after persistence is verified. **Implemented:** `scripts/daily_run.py` and `scripts/schedule_daily.py`.
 7. Add summary/query helpers for dashboard endpoints (`/summary`, `/ticker/{symbol}`) using the persisted aggregates and responsible headlines. **Implemented:** `src/finbrief/queries.py`.
-8. Build the FastAPI service around the query helpers.
+8. Build the FastAPI service around the query helpers. **Started:** `src/finbrief/app.py`.
+9. Replace the lightweight dashboard page with a richer Jinja/HTMX view or decide on React.
