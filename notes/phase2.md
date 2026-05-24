@@ -38,10 +38,10 @@ Phase 2 implementation has started. The one-shot pipeline can now optionally per
   - Useful for development; Windows Task Scheduler remains the better unattended production option.
 - `src/finbrief/app.py`
   - FastAPI app using the shared query helpers.
-  - Provides `/portfolio`, `/summary`, `/ticker/{symbol}`, `/ticker/{symbol}/view`, `/refresh`, `/refresh/status`, `/health`, and dashboard pages at `/` plus ticker drill-down URLs.
+  - Provides `/portfolio`, `/portfolio/add`, `/portfolio/remove/{symbol}`, `/summary`, `/ticker/{symbol}`, `/ticker/{symbol}/view`, `/refresh`, `/refresh/status`, `/health`, and dashboard pages at `/` plus ticker drill-down URLs.
   - FastAPI docs are disabled because raw API documentation is not part of the user-facing product scope.
 - `templates/`
-  - Jinja templates for the dashboard shell, home view, and ticker drill-down view.
+  - Jinja templates for the dashboard shell, home view, portfolio add/remove controls, and ticker drill-down view.
 - `static/styles.css`
   - Shared dashboard styling.
 
@@ -180,5 +180,5 @@ After applying `scripts/clean_duplicate_headlines.py --drop-irrelevant` locally,
 6. Add scheduler entrypoint after persistence is verified. **Implemented:** `scripts/daily_run.py` and `scripts/schedule_daily.py`.
 7. Add summary/query helpers for dashboard endpoints (`/summary`, `/ticker/{symbol}`) using the persisted aggregates and responsible headlines. **Implemented:** `src/finbrief/queries.py`.
 8. Build the FastAPI service around the query helpers. **Started:** `src/finbrief/app.py`.
-9. Replace the lightweight dashboard page with a richer Jinja/HTMX view or decide on React. **In progress:** current FastAPI + Jinja UI now includes portfolio editor, urgency banner, ticker grid, ticker drill-down, 14-day SVG chart, headline list, and run-status panel.
+9. Replace the lightweight dashboard page with a richer Jinja/HTMX view or decide on React. **In progress:** current FastAPI + Jinja UI now includes individual portfolio add/remove controls, bulk portfolio editing, urgency banner, ticker grid, ticker drill-down, 14-day SVG chart, headline list, and run-status panel.
 10. Add a manual dashboard refresh workflow. **Implemented:** `/refresh` starts a background run if one is not already active, `/refresh/status` reports state, and `static/app.js` polls progress from the dashboard.

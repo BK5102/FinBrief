@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 
-from finbrief.db import connect, list_active_tickers, set_active_tickers
+from finbrief.db import connect, deactivate_tickers, list_active_tickers, set_active_tickers
 from finbrief.queries import get_recent_runs, get_summary, get_ticker_detail
 from finbrief.runner import run_pipeline_cycle
 
@@ -49,15 +49,51 @@ def portfolio() -> dict:
 
 @app.post("/portfolio")
 async def update_portfolio(request: Request):
-    body = (await request.body()).decode("utf-8")
-    raw = parse_qs(body).get("tickers", [""])[0]
+    raw = await _form_value(request, "tickers")
     tickers = _split_tickers(raw)
     with connect(DEFAULT_DB_PATH) as conn:
         active = set_active_tickers(conn, tickers)
 
-    if "text/html" in request.headers.get("accept", ""):
+    if _wants_html(request):
         return RedirectResponse("/", status_code=303)
     return {"tickers": active}
+
+
+@app.post("/portfolio/add")
+async def add_portfolio_ticker(request: Request):
+    raw = await _form_value(request, "ticker")
+    ticker = _normalize_ticker(raw)
+    if not ticker:
+        if _wants_html(request):
+            return RedirectResponse("/", status_code=303)
+        raise HTTPException(status_code=400, detail="Ticker is required")
+
+    with connect(DEFAULT_DB_PATH) as conn:
+        active = list_active_tickers(conn)
+        if ticker not in active:
+            active.append(ticker)
+        active = set_active_tickers(conn, active)
+
+    if _wants_html(request):
+        return RedirectResponse("/", status_code=303)
+    return {"tickers": active}
+
+
+@app.post("/portfolio/remove/{symbol}")
+def remove_portfolio_ticker(request: Request, symbol: str):
+    ticker = _normalize_ticker(symbol)
+    if not ticker:
+        if _wants_html(request):
+            return RedirectResponse("/", status_code=303)
+        raise HTTPException(status_code=400, detail="Ticker is required")
+
+    with connect(DEFAULT_DB_PATH) as conn:
+        deactivate_tickers(conn, [ticker])
+        active = list_active_tickers(conn)
+
+    if _wants_html(request):
+        return RedirectResponse("/", status_code=303)
+    return {"removed": ticker, "tickers": active}
 
 
 @app.put("/portfolio")
@@ -76,14 +112,14 @@ def summary(date: str | None = None) -> dict:
 @app.post("/refresh")
 def start_refresh(request: Request):
     started = _start_background_refresh()
-    if "text/html" in request.headers.get("accept", ""):
+    if _wants_html(request):
         return RedirectResponse("/", status_code=303)
     return {"started": started, "refresh": refresh_status()}
 
 
 @app.get("/refresh")
 def refresh_landing(request: Request):
-    if "text/html" in request.headers.get("accept", ""):
+    if _wants_html(request):
         return RedirectResponse("/", status_code=303)
     return {
         "detail": "Use POST /refresh to start a manual refresh. Use GET /refresh/status to inspect status.",
@@ -242,5 +278,19 @@ def _score_tone(score: float) -> str:
     return "neutral"
 
 
+async def _form_value(request: Request, field: str) -> str:
+    body = (await request.body()).decode("utf-8")
+    return parse_qs(body).get(field, [""])[0]
+
+
+def _wants_html(request: Request) -> bool:
+    return "text/html" in request.headers.get("accept", "")
+
+
 def _split_tickers(raw: str) -> list[str]:
-    return [ticker.strip().upper() for ticker in raw.split(",") if ticker.strip()]
+    return [ticker for ticker in (_normalize_ticker(value) for value in raw.split(",")) if ticker]
+
+
+def _normalize_ticker(raw: str) -> str:
+    ticker = raw.strip().upper()
+    return ticker if ticker and all(char.isalnum() or char in ".-" for char in ticker) else ""

@@ -17,14 +17,38 @@
     <section class="banner calm"><strong>No negative sentiment spikes</strong> detected for {{ summary.aggregate_date or "latest date" }}.</section>
   {% endif %}
 
-  <section class="toolbar">
-    <form method="post" action="/portfolio">
+  <section class="portfolio-panel">
+    <div class="section-head">
       <div>
-        <label for="tickers">Portfolio</label>
-        <input id="tickers" name="tickers" value="{{ portfolio_value }}" autocomplete="off">
+        <h3>Portfolio</h3>
+        <p class="meta">{{ summary.active_tickers|length }} active holdings</p>
       </div>
-      <button type="submit">Update</button>
-    </form>
+      <form class="add-ticker" method="post" action="/portfolio/add">
+        <label for="ticker">Add ticker</label>
+        <input id="ticker" name="ticker" placeholder="NVDA" autocomplete="off" maxlength="12">
+        <button type="submit">Add</button>
+      </form>
+    </div>
+
+    <div class="ticker-chips" aria-label="Active portfolio tickers">
+      {% for ticker in summary.active_tickers %}
+        <form method="post" action="/portfolio/remove/{{ ticker }}" class="ticker-chip">
+          <span>{{ ticker }}</span>
+          <button type="submit" aria-label="Remove {{ ticker }}">&times;</button>
+        </form>
+      {% endfor %}
+    </div>
+
+    <details class="bulk-edit">
+      <summary>Bulk edit</summary>
+      <form method="post" action="/portfolio">
+        <label for="tickers">Comma-separated tickers</label>
+        <div class="bulk-row">
+          <input id="tickers" name="tickers" value="{{ portfolio_value }}" autocomplete="off">
+          <button type="submit">Update</button>
+        </div>
+      </form>
+    </details>
   </section>
 
   <section class="run-panel" data-refresh-panel>

@@ -50,28 +50,6 @@ a {
   font-size: 14px;
 }
 
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
-  gap: 14px;
-  margin: 18px 0;
-  flex-wrap: wrap;
-}
-
-.toolbar form {
-  display: flex;
-  gap: 10px;
-  align-items: end;
-  flex-wrap: wrap;
-}
-
-.toolbar-links {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
 label {
   display: block;
   font-size: 13px;
@@ -99,6 +77,93 @@ button,
   text-decoration: none;
   font: inherit;
   cursor: pointer;
+}
+
+.portfolio-panel {
+  padding: 16px;
+  margin: 18px 0;
+  background: white;
+  border: 1px solid #dfe4dd;
+  border-radius: 8px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
+}
+
+.add-ticker {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  flex-wrap: wrap;
+  justify-content: end;
+}
+
+.add-ticker input {
+  width: 116px;
+  text-transform: uppercase;
+}
+
+.ticker-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.ticker-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 6px 0 10px;
+  border: 1px solid #cfd8cf;
+  border-radius: 999px;
+  background: #fbfcfa;
+  font-weight: 700;
+}
+
+.ticker-chip button {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 999px;
+  border-color: transparent;
+  background: transparent;
+  color: #66736b;
+  line-height: 1;
+}
+
+.ticker-chip button:hover {
+  background: #fee4df;
+  color: #9f1f15;
+}
+
+.bulk-edit {
+  border-top: 1px solid #eef1ec;
+  padding-top: 12px;
+}
+
+.bulk-edit summary {
+  cursor: pointer;
+  color: #46524a;
+  font-weight: 700;
+}
+
+.bulk-edit form {
+  margin-top: 12px;
+}
+
+.bulk-row {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  flex-wrap: wrap;
 }
 
 .button.ghost {
@@ -372,6 +437,19 @@ th {
 
   input {
     width: calc(100vw - 64px);
+  }
+
+  .section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .add-ticker {
+    justify-content: start;
+  }
+
+  .add-ticker input {
+    width: min(180px, calc(100vw - 150px));
   }
 
   .run-panel {
