@@ -177,6 +177,18 @@ $env:PYTHONPATH = "src"
 .venv\Scripts\python.exe scripts\inspect_db.py --db data\finbrief.db
 ```
 
+Run the daily pipeline once using the active SQLite portfolio:
+
+```powershell
+.venv\Scripts\python.exe scripts\daily_run.py --db data\finbrief.db
+```
+
+Keep a local scheduler process alive for a 07:00 daily run:
+
+```powershell
+.venv\Scripts\python.exe scripts\schedule_daily.py --db data\finbrief.db --time 07:00
+```
+
 Backfill 7 days from Finnhub:
 
 ```powershell
@@ -198,7 +210,7 @@ Copy-Item .env.example .env
 Phase 1 is functionally complete and paused at validation. Phase 2 implementation has started.
 
 - Done: CLI pipeline, multi-source fetchers, FinBERT scoring, 30-row sanity-check CSV.
-- Done in Phase 2: SQLite schema, persistence helpers, daily aggregate recomputation, initial negative-spike query helper, optional `--db` pipeline persistence, portfolio management script, DB inspection script, Finnhub backfill script.
+- Done in Phase 2: SQLite schema, persistence helpers, daily aggregate recomputation, initial negative-spike query helper, optional `--db` pipeline persistence, portfolio management script, DB inspection script, Finnhub backfill script, read-side query helpers, daily-run script, local scheduler script.
 - Pending for Phase 1 closure: choose and run a validation path.
 - Recommended next validation path: run an objective Financial PhraseBank benchmark, then document the result and caveats.
 

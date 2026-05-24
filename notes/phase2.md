@@ -27,6 +27,15 @@ Phase 2 implementation has started. The one-shot pipeline can now optionally per
 - `scripts/backfill_finnhub.py`
   - Backfills historical date windows from Finnhub into SQLite.
   - Requires `FINNHUB_API_KEY` in local `.env`.
+- `src/finbrief/queries.py`
+  - Shared read-side data contract for the future dashboard/API.
+  - Provides `get_summary(...)` and `get_ticker_detail(...)`.
+- `scripts/daily_run.py`
+  - Runs one daily fetch/score/persist cycle using the active SQLite portfolio.
+  - Writes structured JSONL logs to `logs/daily_runs.jsonl`.
+- `scripts/schedule_daily.py`
+  - Lightweight local scheduler that calls `daily_run.py` at a configured wall-clock time.
+  - Useful for development; Windows Task Scheduler remains the better unattended production option.
 
 ## SQLite schema
 
@@ -96,6 +105,18 @@ $env:PYTHONPATH = "src"
 .venv\Scripts\python.exe scripts\inspect_db.py --db data\finbrief.db
 ```
 
+Run one daily cycle:
+
+```powershell
+.venv\Scripts\python.exe scripts\daily_run.py --db data\finbrief.db
+```
+
+Run a local scheduler:
+
+```powershell
+.venv\Scripts\python.exe scripts\schedule_daily.py --db data\finbrief.db --time 07:00
+```
+
 Backfill from Finnhub:
 
 ```powershell
@@ -136,5 +157,6 @@ Follow-up finding: the first inspection showed the same syndicated NVDA headline
 3. Inspect `pipeline_runs`, `headlines`, `scores`, and `daily_aggregates`. **Done via `scripts/inspect_db.py`.**
 4. Add portfolio management commands or a tiny seed script for active tickers. **Done via `scripts/portfolio.py`.**
 5. Add a backfill path. **Implemented:** `scripts/backfill_finnhub.py` supports Finnhub historical windows once `FINNHUB_API_KEY` is present.
-6. Add scheduler entrypoint after persistence is verified.
-7. Add summary/query helpers for dashboard endpoints (`/summary`, `/ticker/{symbol}`) using the persisted aggregates and responsible headlines.
+6. Add scheduler entrypoint after persistence is verified. **Implemented:** `scripts/daily_run.py` and `scripts/schedule_daily.py`.
+7. Add summary/query helpers for dashboard endpoints (`/summary`, `/ticker/{symbol}`) using the persisted aggregates and responsible headlines. **Implemented:** `src/finbrief/queries.py`.
+8. Build the FastAPI service around the query helpers.
