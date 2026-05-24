@@ -38,7 +38,7 @@ Phase 2 implementation has started. The one-shot pipeline can now optionally per
   - Useful for development; Windows Task Scheduler remains the better unattended production option.
 - `src/finbrief/app.py`
   - FastAPI app using the shared query helpers.
-  - Provides `/portfolio`, `/summary`, `/ticker/{symbol}`, `/health`, `/docs`, and a lightweight dashboard page at `/`.
+  - Provides `/portfolio`, `/summary`, `/ticker/{symbol}`, `/ticker/{symbol}/view`, `/health`, `/docs`, and dashboard pages at `/` plus ticker drill-down URLs.
 
 ## SQLite schema
 
@@ -169,4 +169,4 @@ Follow-up finding: the first inspection showed the same syndicated NVDA headline
 6. Add scheduler entrypoint after persistence is verified. **Implemented:** `scripts/daily_run.py` and `scripts/schedule_daily.py`.
 7. Add summary/query helpers for dashboard endpoints (`/summary`, `/ticker/{symbol}`) using the persisted aggregates and responsible headlines. **Implemented:** `src/finbrief/queries.py`.
 8. Build the FastAPI service around the query helpers. **Started:** `src/finbrief/app.py`.
-9. Replace the lightweight dashboard page with a richer Jinja/HTMX view or decide on React.
+9. Replace the lightweight dashboard page with a richer Jinja/HTMX view or decide on React. **In progress:** current FastAPI HTML now includes portfolio editor, urgency banner, ticker grid, ticker drill-down, 14-day SVG chart, and headline list.
