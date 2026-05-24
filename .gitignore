@@ -43,6 +43,7 @@ models/
 
 # Pipeline output artifacts
 today*.json
+data/
 out/
 
 # Local-only session memory (not for public repo)

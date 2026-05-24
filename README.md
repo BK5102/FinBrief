@@ -155,6 +155,28 @@ $env:PYTHONPATH = "src"
 .venv\Scripts\python.exe -m finbrief.pipeline --tickers AAPL,MSFT,NVDA --db data\finbrief.db --pretty --out today.json
 ```
 
+Manage the local portfolio:
+
+```powershell
+$env:PYTHONPATH = "src"
+.venv\Scripts\python.exe scripts\portfolio.py --db data\finbrief.db set AAPL,MSFT,NVDA,JPM,TSLA
+.venv\Scripts\python.exe scripts\portfolio.py --db data\finbrief.db list
+```
+
+After a portfolio is stored, the pipeline can read active tickers from SQLite:
+
+```powershell
+$env:PYTHONPATH = "src"
+.venv\Scripts\python.exe -m finbrief.pipeline --db data\finbrief.db --pretty --out data\latest_run.json
+```
+
+Inspect persisted data:
+
+```powershell
+$env:PYTHONPATH = "src"
+.venv\Scripts\python.exe scripts\inspect_db.py --db data\finbrief.db
+```
+
 Optional Finnhub setup:
 
 ```powershell
@@ -169,7 +191,7 @@ Copy-Item .env.example .env
 Phase 1 is functionally complete and paused at validation. Phase 2 implementation has started.
 
 - Done: CLI pipeline, multi-source fetchers, FinBERT scoring, 30-row sanity-check CSV.
-- Done in Phase 2: SQLite schema, persistence helpers, daily aggregate recomputation, initial negative-spike query helper, optional `--db` pipeline persistence.
+- Done in Phase 2: SQLite schema, persistence helpers, daily aggregate recomputation, initial negative-spike query helper, optional `--db` pipeline persistence, portfolio management script, DB inspection script.
 - Pending for Phase 1 closure: choose and run a validation path.
 - Recommended next validation path: run an objective Financial PhraseBank benchmark, then document the result and caveats.
 

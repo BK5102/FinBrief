@@ -107,6 +107,33 @@ def upsert_tickers(conn: sqlite3.Connection, tickers: Iterable[str]) -> None:
     )
 
 
+def set_active_tickers(conn: sqlite3.Connection, tickers: Iterable[str]) -> list[str]:
+    """Replace the active portfolio with the provided ticker list."""
+    normalized = _normalize_tickers(tickers)
+    now = _now_iso()
+    conn.execute("UPDATE tickers SET active = 0, updated_at = ?", (now,))
+    upsert_tickers(conn, normalized)
+    conn.commit()
+    return normalized
+
+
+def deactivate_tickers(conn: sqlite3.Connection, tickers: Iterable[str]) -> list[str]:
+    normalized = _normalize_tickers(tickers)
+    now = _now_iso()
+    conn.executemany(
+        "UPDATE tickers SET active = 0, updated_at = ? WHERE symbol = ?",
+        [(now, ticker) for ticker in normalized],
+    )
+    conn.commit()
+    return normalized
+
+
+def list_active_tickers(conn: sqlite3.Connection) -> list[str]:
+    init_db(conn)
+    rows = conn.execute("SELECT symbol FROM tickers WHERE active = 1 ORDER BY symbol").fetchall()
+    return [str(row["symbol"]) for row in rows]
+
+
 def persist_pipeline_result(
     conn: sqlite3.Connection,
     tickers: Sequence[str],
@@ -351,3 +378,15 @@ def _date_part(iso_datetime: str) -> str:
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _normalize_tickers(tickers: Iterable[str]) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for ticker in tickers:
+        symbol = ticker.strip().upper()
+        if not symbol or symbol in seen:
+            continue
+        normalized.append(symbol)
+        seen.add(symbol)
+    return normalized

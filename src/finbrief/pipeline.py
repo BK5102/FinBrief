@@ -18,14 +18,14 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from finbrief.db import connect, persist_pipeline_result
+from finbrief.db import connect, list_active_tickers, persist_pipeline_result
 from finbrief.fetcher import fetch_all_today
 from finbrief.scorer import score_texts
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="FinBrief Phase 1 pipeline")
-    parser.add_argument("--tickers", required=True, help="Comma-separated ticker symbols, e.g. AAPL,MSFT,NVDA")
+    parser.add_argument("--tickers", help="Comma-separated ticker symbols, e.g. AAPL,MSFT,NVDA")
     parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output")
     parser.add_argument("--out", type=Path, help="Write JSON to file instead of stdout")
     parser.add_argument("--db", type=Path, help="Persist headlines, scores, and daily aggregates to SQLite")
@@ -40,9 +40,12 @@ def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     finnhub_key = os.getenv("FINNHUB_API_KEY") or None
 
-    tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()] if args.tickers else []
+    if not tickers and args.db:
+        with connect(args.db) as conn:
+            tickers = list_active_tickers(conn)
     if not tickers:
-        parser.error("--tickers must contain at least one symbol")
+        parser.error("--tickers must contain at least one symbol, unless --db contains active tickers")
 
     t0 = time.perf_counter()
     headlines = fetch_all_today(tickers, finnhub_key=finnhub_key)

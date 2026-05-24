@@ -19,6 +19,11 @@ Phase 2 implementation has started. The one-shot pipeline can now optionally per
 - `scripts/benchmark_phrasebank.py`
   - Local CSV benchmark harness for Phase 1 validation.
   - Expected columns: `sentence,label`.
+- `scripts/portfolio.py`
+  - Stores the active portfolio in SQLite.
+  - Supports `set`, `add`, `remove`, and `list`.
+- `scripts/inspect_db.py`
+  - Prints table counts, latest aggregate rows, and negative-spike results.
 
 ## SQLite schema
 
@@ -59,16 +64,51 @@ This cannot produce meaningful spikes until enough historical aggregates exist.
 
 ## How to run
 
+Seed or inspect the active portfolio:
+
+```powershell
+$env:PYTHONPATH = "src"
+.venv\Scripts\python.exe scripts\portfolio.py --db data\finbrief.db set AAPL,MSFT,NVDA,JPM,TSLA
+.venv\Scripts\python.exe scripts\portfolio.py --db data\finbrief.db list
+```
+
+Run with explicit tickers:
+
 ```powershell
 $env:PYTHONPATH = "src"
 .venv\Scripts\python.exe -m finbrief.pipeline --tickers AAPL,MSFT,NVDA --db data\finbrief.db --pretty --out today.json
 ```
 
+Run using active tickers from SQLite:
+
+```powershell
+$env:PYTHONPATH = "src"
+.venv\Scripts\python.exe -m finbrief.pipeline --db data\finbrief.db --pretty --out data\latest_run.json
+```
+
+Inspect persisted data:
+
+```powershell
+$env:PYTHONPATH = "src"
+.venv\Scripts\python.exe scripts\inspect_db.py --db data\finbrief.db
+```
+
+## First real persisted run
+
+Run date: 2026-05-23 local / 2026-05-24 UTC.
+
+- Tickers: `AAPL,MSFT,NVDA,JPM,TSLA`
+- Headlines persisted: 26
+- Scores persisted: 26
+- Aggregates created: 2 (`NVDA`, `TSLA`)
+- Zero-headline tickers for that UTC window: `AAPL`, `MSFT`, `JPM`
+- Negative spikes: 0 (expected with only one aggregate day; rolling history is not populated yet)
+
 ## Next execution checklist
 
 1. Run the PhraseBank benchmark once a labeled CSV is available.
-2. Run a real persisted pipeline pass with `--db data\finbrief.db`.
-3. Inspect `pipeline_runs`, `headlines`, `scores`, and `daily_aggregates`.
-4. Add portfolio management commands or a tiny seed script for active tickers.
+2. Run a real persisted pipeline pass with `--db data\finbrief.db`. **Done once.**
+3. Inspect `pipeline_runs`, `headlines`, `scores`, and `daily_aggregates`. **Done via `scripts/inspect_db.py`.**
+4. Add portfolio management commands or a tiny seed script for active tickers. **Done via `scripts/portfolio.py`.**
 5. Add a backfill path. Finnhub can support historical company-news date windows once the API key is confirmed; Yahoo-backed sources are today-oriented and less suitable for backfill.
 6. Add scheduler entrypoint after persistence is verified.
