@@ -6,7 +6,6 @@ import argparse
 import json
 import os
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -17,10 +16,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from finbrief.db import connect, list_active_tickers, persist_pipeline_result
-from finbrief.fetcher import fetch_all_today
-from finbrief.pipeline import _score_text
-from finbrief.scorer import score_texts
+from finbrief.runner import run_pipeline_cycle
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -35,32 +31,18 @@ def main(argv: list[str] | None = None) -> int:
     finnhub_key = os.getenv("FINNHUB_API_KEY") or None
 
     try:
-        with connect(args.db) as conn:
-            tickers = _split_tickers(args.tickers) if args.tickers else list_active_tickers(conn)
-        if not tickers:
-            raise RuntimeError("No tickers provided and no active tickers found in DB")
-
-        t0 = time.perf_counter()
-        headlines = fetch_all_today(tickers, finnhub_key=finnhub_key)
-        fetch_seconds = time.perf_counter() - t0
-
-        t1 = time.perf_counter()
-        scores = score_texts([_score_text(headline) for headline in headlines]) if headlines else []
-        score_seconds = time.perf_counter() - t1
-
-        timings = {"fetch": round(fetch_seconds, 2), "score": round(score_seconds, 2)}
-        with connect(args.db) as conn:
-            run_id = persist_pipeline_result(conn, tickers, headlines, scores, timings)
+        tickers = _split_tickers(args.tickers) if args.tickers else []
+        output = run_pipeline_cycle(tickers=tickers, db_path=args.db, finnhub_key=finnhub_key)
 
         event = {
             "status": "success",
-            "run_id": run_id,
+            "run_id": output.get("db", {}).get("pipeline_run_id"),
             "started_at": started_at,
             "completed_at": datetime.now(timezone.utc).isoformat(),
-            "tickers": tickers,
-            "articles_fetched": len(headlines),
-            "articles_scored": len(scores),
-            "timings_seconds": timings,
+            "tickers": output["tickers"],
+            "articles_fetched": sum(output["counts"].values()),
+            "articles_scored": sum(output["counts"].values()),
+            "timings_seconds": output["timings_seconds"],
         }
         _write_log(args.log, event)
         print(json.dumps(event, indent=2))

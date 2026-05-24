@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs
 
@@ -10,13 +12,25 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from dotenv import load_dotenv
 
 from finbrief.db import connect, list_active_tickers, set_active_tickers
 from finbrief.queries import get_recent_runs, get_summary, get_ticker_detail
+from finbrief.runner import run_pipeline_cycle
 
 ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(ROOT / ".env")
 DEFAULT_DB_PATH = Path(os.getenv("FINBRIEF_DB", "data/finbrief.db"))
 TEMPLATES = Jinja2Templates(directory=str(ROOT / "templates"))
+REFRESH_LOCK = threading.Lock()
+REFRESH_STATE = {
+    "running": False,
+    "status": "idle",
+    "started_at": None,
+    "completed_at": None,
+    "result": None,
+    "error": None,
+}
 
 app = FastAPI(title="FinBrief", version="0.1.0")
 app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
@@ -59,6 +73,20 @@ def summary(date: str | None = None) -> dict:
         return get_summary(conn, aggregate_date=date)
 
 
+@app.post("/refresh")
+def start_refresh(request: Request):
+    started = _start_background_refresh()
+    if "text/html" in request.headers.get("accept", ""):
+        return RedirectResponse("/", status_code=303)
+    return {"started": started, "refresh": refresh_status()}
+
+
+@app.get("/refresh/status")
+def refresh_status() -> dict:
+    with REFRESH_LOCK:
+        return dict(REFRESH_STATE)
+
+
 @app.get("/ticker/{symbol}")
 def ticker_detail(symbol: str, date: str | None = None) -> dict:
     detail = _ticker_detail(symbol, date)
@@ -77,6 +105,7 @@ def home(request: Request):
         {
             "summary": data,
             "recent_runs": runs,
+            "refresh": refresh_status(),
             "portfolio_value": ",".join(data["active_tickers"]),
             "holding_cards": [_prepare_holding(holding) for holding in data["holdings"]],
         },
@@ -103,6 +132,57 @@ def _ticker_detail(symbol: str, date: str | None = None) -> dict:
     if not detail["aggregates"] and not detail["headlines"]:
         raise HTTPException(status_code=404, detail=f"No data found for {symbol.upper()}")
     return detail
+
+
+def _start_background_refresh() -> bool:
+    with REFRESH_LOCK:
+        if REFRESH_STATE["running"]:
+            return False
+        REFRESH_STATE.update(
+            {
+                "running": True,
+                "status": "running",
+                "started_at": datetime.now(timezone.utc).isoformat(),
+                "completed_at": None,
+                "result": None,
+                "error": None,
+            }
+        )
+    thread = threading.Thread(target=_run_refresh_job, daemon=True)
+    thread.start()
+    return True
+
+
+def _run_refresh_job() -> None:
+    try:
+        output = run_pipeline_cycle(db_path=DEFAULT_DB_PATH, finnhub_key=os.getenv("FINNHUB_API_KEY") or None)
+        result = {
+            "tickers": output["tickers"],
+            "counts": output["counts"],
+            "timings_seconds": output["timings_seconds"],
+            "pipeline_run_id": output.get("db", {}).get("pipeline_run_id"),
+        }
+        with REFRESH_LOCK:
+            REFRESH_STATE.update(
+                {
+                    "running": False,
+                    "status": "success",
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                    "result": result,
+                    "error": None,
+                }
+            )
+    except Exception as exc:
+        with REFRESH_LOCK:
+            REFRESH_STATE.update(
+                {
+                    "running": False,
+                    "status": "failure",
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                    "result": None,
+                    "error": str(exc),
+                }
+            )
 
 
 def _prepare_holding(holding: dict) -> dict:

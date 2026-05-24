@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 from finbrief.db import connect, list_active_tickers, persist_pipeline_result
 from finbrief.fetcher import fetch_finnhub_range, headline_dedupe_key
-from finbrief.pipeline import _score_text
+from finbrief.runner import score_text
 from finbrief.scorer import score_texts
 
 
@@ -47,7 +47,7 @@ def main() -> int:
     fetch_seconds = time.perf_counter() - fetch_start
 
     score_start = time.perf_counter()
-    scores = score_texts([_score_text(headline) for headline in headlines]) if headlines else []
+    scores = score_texts([score_text(headline) for headline in headlines]) if headlines else []
     score_seconds = time.perf_counter() - score_start
 
     with connect(args.db) as conn:

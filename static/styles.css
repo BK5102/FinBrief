@@ -145,6 +145,37 @@ button,
   border-radius: 8px;
 }
 
+.run-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: end;
+}
+
+.status {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.status.running {
+  color: #9a3412;
+}
+
+.status.success {
+  color: #137a4b;
+}
+
+.status.failure {
+  color: #b42318;
+}
+
+button:disabled {
+  cursor: progress;
+  opacity: 0.65;
+}
+
 code {
   display: block;
   max-width: 100%;

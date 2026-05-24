@@ -38,7 +38,7 @@ Phase 2 implementation has started. The one-shot pipeline can now optionally per
   - Useful for development; Windows Task Scheduler remains the better unattended production option.
 - `src/finbrief/app.py`
   - FastAPI app using the shared query helpers.
-  - Provides `/portfolio`, `/summary`, `/ticker/{symbol}`, `/ticker/{symbol}/view`, `/health`, `/docs`, and dashboard pages at `/` plus ticker drill-down URLs.
+  - Provides `/portfolio`, `/summary`, `/ticker/{symbol}`, `/ticker/{symbol}/view`, `/refresh`, `/refresh/status`, `/health`, `/docs`, and dashboard pages at `/` plus ticker drill-down URLs.
 - `templates/`
   - Jinja templates for the dashboard shell, home view, and ticker drill-down view.
 - `static/styles.css`
@@ -174,3 +174,4 @@ Follow-up finding: the first inspection showed the same syndicated NVDA headline
 7. Add summary/query helpers for dashboard endpoints (`/summary`, `/ticker/{symbol}`) using the persisted aggregates and responsible headlines. **Implemented:** `src/finbrief/queries.py`.
 8. Build the FastAPI service around the query helpers. **Started:** `src/finbrief/app.py`.
 9. Replace the lightweight dashboard page with a richer Jinja/HTMX view or decide on React. **In progress:** current FastAPI + Jinja UI now includes portfolio editor, urgency banner, ticker grid, ticker drill-down, 14-day SVG chart, headline list, and run-status panel.
+10. Add a manual dashboard refresh workflow. **Implemented:** `/refresh` starts a background run if one is not already active, and `/refresh/status` reports state.

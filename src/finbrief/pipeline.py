@@ -12,15 +12,11 @@ import json
 import logging
 import os
 import sys
-import time
-from collections import defaultdict
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-from finbrief.db import connect, list_active_tickers, persist_pipeline_result
-from finbrief.fetcher import fetch_all_today
-from finbrief.scorer import score_texts
+from finbrief.runner import run_pipeline_cycle
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -40,37 +36,11 @@ def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     finnhub_key = os.getenv("FINNHUB_API_KEY") or None
 
-    tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()] if args.tickers else []
-    if not tickers and args.db:
-        with connect(args.db) as conn:
-            tickers = list_active_tickers(conn)
-    if not tickers:
-        parser.error("--tickers must contain at least one symbol, unless --db contains active tickers")
-
-    t0 = time.perf_counter()
-    headlines = fetch_all_today(tickers, finnhub_key=finnhub_key)
-    fetch_secs = time.perf_counter() - t0
-
-    texts = [_score_text(h) for h in headlines]
-    t1 = time.perf_counter()
-    scores = score_texts(texts) if texts else []
-    score_secs = time.perf_counter() - t1
-
-    by_ticker: dict[str, list[dict]] = defaultdict(list)
-    for h, s in zip(headlines, scores):
-        by_ticker[h.ticker].append({**h.to_dict(), "sentiment": s})
-
-    output = {
-        "tickers": tickers,
-        "counts": {t: len(by_ticker.get(t, [])) for t in tickers},
-        "timings_seconds": {"fetch": round(fetch_secs, 2), "score": round(score_secs, 2)},
-        "headlines_by_ticker": by_ticker,
-    }
-
-    if args.db:
-        with connect(args.db) as conn:
-            run_id = persist_pipeline_result(conn, tickers, headlines, scores, output["timings_seconds"])
-        output["db"] = {"path": str(args.db), "pipeline_run_id": run_id}
+    tickers = [ticker.strip().upper() for ticker in args.tickers.split(",") if ticker.strip()] if args.tickers else []
+    try:
+        output = run_pipeline_cycle(tickers=tickers, db_path=args.db, finnhub_key=finnhub_key)
+    except ValueError as exc:
+        parser.error(str(exc))
 
     payload = json.dumps(output, indent=2 if args.pretty else None, ensure_ascii=False)
     if args.out:
@@ -79,13 +49,6 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(payload)
     return 0
-
-
-def _score_text(headline) -> str:
-    """FinBERT sees title; summary appended if present (short enough that truncation handles overflow)."""
-    if headline.summary and headline.summary.lower() not in headline.title.lower():
-        return f"{headline.title}. {headline.summary}"
-    return headline.title
 
 
 if __name__ == "__main__":

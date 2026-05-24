@@ -39,8 +39,22 @@
       {% else %}
         <p class="meta">No pipeline runs recorded.</p>
       {% endif %}
+      {% if refresh.running %}
+        <p class="status running">Refresh running since {{ refresh.started_at }}.</p>
+      {% elif refresh.status == "success" %}
+        <p class="status success">Last manual refresh completed at {{ refresh.completed_at }}.</p>
+      {% elif refresh.status == "failure" %}
+        <p class="status failure">Last manual refresh failed: {{ refresh.error }}</p>
+      {% endif %}
     </div>
-    <code>.venv\Scripts\python.exe scripts\daily_run.py --db data\finbrief.db</code>
+    <div class="run-actions">
+      <form method="post" action="/refresh">
+        <button type="submit" {% if refresh.running %}disabled{% endif %}>
+          {% if refresh.running %}Refresh Running{% else %}Run Refresh{% endif %}
+        </button>
+      </form>
+      <a class="button ghost" href="/refresh/status">Refresh JSON</a>
+    </div>
   </section>
 
   <section class="grid" aria-label="Ticker summary cards">
