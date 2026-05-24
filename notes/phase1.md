@@ -52,7 +52,7 @@ Pipeline and multi-source fetcher complete; **validation step paused** while bui
 
 ## Next execution checklist
 
-1. Implement a small benchmark script for Financial PhraseBank.
+1. Implement a small benchmark script for Financial PhraseBank. **Done:** `scripts/benchmark_phrasebank.py` accepts a local `sentence,label` CSV.
 2. Run benchmark scoring through the existing `scorer.py` wrapper and record accuracy/confusion counts.
 3. If benchmark quality is acceptable, mark Phase 1 closed with validation caveats.
-4. Start Phase 2: SQLite schema, ingest persistence, daily aggregate calculation, and an initial seeded portfolio.
+4. Start Phase 2: SQLite schema, ingest persistence, daily aggregate calculation, and an initial seeded portfolio. **Started:** schema, persistence, aggregate recomputation, and spike-query helper are implemented in `src/finbrief/db.py`.

@@ -18,6 +18,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from finbrief.db import connect, persist_pipeline_result
 from finbrief.fetcher import fetch_all_today
 from finbrief.scorer import score_texts
 
@@ -27,6 +28,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--tickers", required=True, help="Comma-separated ticker symbols, e.g. AAPL,MSFT,NVDA")
     parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output")
     parser.add_argument("--out", type=Path, help="Write JSON to file instead of stdout")
+    parser.add_argument("--db", type=Path, help="Persist headlines, scores, and daily aggregates to SQLite")
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
     args = parser.parse_args(argv)
 
@@ -61,6 +63,11 @@ def main(argv: list[str] | None = None) -> int:
         "timings_seconds": {"fetch": round(fetch_secs, 2), "score": round(score_secs, 2)},
         "headlines_by_ticker": by_ticker,
     }
+
+    if args.db:
+        with connect(args.db) as conn:
+            run_id = persist_pipeline_result(conn, tickers, headlines, scores, output["timings_seconds"])
+        output["db"] = {"path": str(args.db), "pipeline_run_id": run_id}
 
     payload = json.dumps(output, indent=2 if args.pretty else None, ensure_ascii=False)
     if args.out:

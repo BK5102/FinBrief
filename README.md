@@ -148,6 +148,13 @@ $env:PYTHONPATH = "src"
 .venv\Scripts\python.exe -m finbrief.pipeline --tickers AAPL,MSFT,NVDA --pretty --out today.json
 ```
 
+Persist a run to SQLite:
+
+```powershell
+$env:PYTHONPATH = "src"
+.venv\Scripts\python.exe -m finbrief.pipeline --tickers AAPL,MSFT,NVDA --db data\finbrief.db --pretty --out today.json
+```
+
 Optional Finnhub setup:
 
 ```powershell
@@ -159,11 +166,12 @@ Copy-Item .env.example .env
 
 ## Status
 
-Phase 1 is functionally complete and paused at validation.
+Phase 1 is functionally complete and paused at validation. Phase 2 implementation has started.
 
 - Done: CLI pipeline, multi-source fetchers, FinBERT scoring, 30-row sanity-check CSV.
-- Pending: choose a validation path before Phase 2.
-- Recommended next validation path: run an objective Financial PhraseBank benchmark first, then start Phase 2 with SQLite persistence.
+- Done in Phase 2: SQLite schema, persistence helpers, daily aggregate recomputation, initial negative-spike query helper, optional `--db` pipeline persistence.
+- Pending for Phase 1 closure: choose and run a validation path.
+- Recommended next validation path: run an objective Financial PhraseBank benchmark, then document the result and caveats.
 
 Validation options:
 
