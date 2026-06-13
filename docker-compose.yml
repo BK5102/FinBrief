@@ -1,0 +1,37 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8780:8780"
+    volumes:
+      - finbrief_data:/app/data
+      - finbrief_logs:/app/logs
+      - hf_cache:/root/.cache/huggingface
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8780/health')"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  scheduler:
+    build: .
+    volumes:
+      - finbrief_data:/app/data
+      - finbrief_logs:/app/logs
+      - hf_cache:/root/.cache/huggingface
+    env_file:
+      - .env
+    command: ["python", "scripts/schedule_daily.py", "--db", "/app/data/finbrief.db"]
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  finbrief_data:
+  finbrief_logs:
+  hf_cache:

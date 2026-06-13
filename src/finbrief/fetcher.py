@@ -16,15 +16,33 @@ from __future__ import annotations
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone, timedelta
-from typing import Iterable
+from typing import Callable, Iterable, TypeVar
 
 import feedparser
 import requests
 import yfinance as yf
 
+from finbrief.config import FETCH_RETRIES, FETCH_RETRY_DELAY
+
 log = logging.getLogger(__name__)
+
+_T = TypeVar("_T")
+
+
+def _retry(fn: Callable[[], _T], retries: int = FETCH_RETRIES, delay: float = FETCH_RETRY_DELAY) -> _T:
+    """Call fn(); on exception retry with exponential backoff. Raises on final failure."""
+    for attempt in range(retries):
+        try:
+            return fn()
+        except Exception:
+            if attempt == retries - 1:
+                raise
+            wait = delay * (2 ** attempt)
+            log.debug("retry %d/%d in %.1fs", attempt + 1, retries, wait)
+            time.sleep(wait)
 
 TICKER_ALIASES = {
     "AAPL": ("aapl", "apple", "iphone", "ipad", "mac", "app store"),
@@ -64,9 +82,9 @@ def fetch_yahoo_rss(ticker: str, since: datetime | None = None) -> list[Headline
     """Yahoo Finance per-ticker RSS feed. No API key required."""
     url = f"https://finance.yahoo.com/rss/headline?s={ticker}"
     try:
-        feed = feedparser.parse(url)
+        feed = _retry(lambda: feedparser.parse(url))
     except Exception as e:
-        log.warning("yahoo_rss parse failed for %s: %s", ticker, e)
+        log.warning("yahoo_rss fetch failed for %s after retries: %s", ticker, e)
         return []
 
     out: list[Headline] = []
@@ -90,9 +108,9 @@ def fetch_yahoo_rss(ticker: str, since: datetime | None = None) -> list[Headline
 def fetch_yfinance(ticker: str, since: datetime | None = None) -> list[Headline]:
     """yfinance's Ticker.news endpoint. No API key required. Wraps the modern Yahoo news API."""
     try:
-        items = yf.Ticker(ticker).news or []
+        items = _retry(lambda: yf.Ticker(ticker).news or [])
     except Exception as e:
-        log.warning("yfinance fetch failed for %s: %s", ticker, e)
+        log.warning("yfinance fetch failed for %s after retries: %s", ticker, e)
         return []
 
     out: list[Headline] = []
@@ -148,11 +166,11 @@ def fetch_finnhub_range(ticker: str, api_key: str, start: datetime, end: datetim
         "token": api_key,
     }
     try:
-        r = requests.get("https://finnhub.io/api/v1/company-news", params=params, timeout=15)
+        r = _retry(lambda: requests.get("https://finnhub.io/api/v1/company-news", params=params, timeout=15))
         r.raise_for_status()
         items = r.json()
     except Exception as e:
-        log.warning("finnhub fetch failed for %s: %s", ticker, e)
+        log.warning("finnhub fetch failed for %s after retries: %s", ticker, e)
         return []
 
     out: list[Headline] = []

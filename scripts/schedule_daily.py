@@ -8,16 +8,25 @@ process alive and triggers the run at the configured wall-clock time.
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run FinBrief daily at a local wall-clock time")
-    parser.add_argument("--time", default="07:00", help="Local run time in HH:MM format")
+    parser.add_argument(
+        "--time",
+        default=os.getenv("REFRESH_TIME", "07:00"),
+        help="Local run time in HH:MM format (default: REFRESH_TIME env var or 07:00)",
+    )
     parser.add_argument("--db", type=Path, default=Path("data/finbrief.db"), help="SQLite database path")
     parser.add_argument("--tickers", help="Optional comma-separated ticker override")
     args = parser.parse_args()

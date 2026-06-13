@@ -268,20 +268,91 @@ Copy-Item .env.example .env
 
 ---
 
+## Docker Quickstart
+
+Requires Docker Desktop (or Docker Engine + Compose plugin).
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env and set FINNHUB_API_KEY if you have one
+docker compose build         # first build takes ~10 min (torch download)
+docker compose up -d
+```
+
+Open `http://localhost:8780/`.
+
+On first startup the `scheduler` container will download the FinBERT model (~440 MB) into the shared `hf_cache` volume. Subsequent restarts use the cache and start in seconds.
+
+Seed a portfolio from the host once the app is healthy:
+
+```powershell
+docker compose exec app python scripts/portfolio.py --db /app/data/finbrief.db set AAPL,MSFT,NVDA,JPM,TSLA
+```
+
+Backfill 7 days of history from Finnhub (requires `FINNHUB_API_KEY` in `.env`):
+
+```powershell
+docker compose exec app python scripts/backfill_finnhub.py --db /app/data/finbrief.db --days 7
+```
+
+The scheduler container runs the pipeline automatically every day at `REFRESH_TIME` (default 07:00 local). Both containers share the same `finbrief_data` volume so all writes are durable.
+
+To stop and preserve data:
+
+```powershell
+docker compose down   # containers removed; named volumes kept
+```
+
+---
+
+## How the Urgency Signal Works
+
+Each morning the pipeline fetches today's headlines for every ticker in your portfolio and scores each one with [FinBERT](https://huggingface.co/ProsusAI/finbert), which outputs a `positive / neutral / negative` label plus a confidence score.
+
+**Ticker-day score** — a single number between −1.0 and +1.0:
+
+```
+score = sum(sentiment_value × confidence) / sum(confidence)
+```
+
+where `positive = +1.0`, `neutral = 0.0`, `negative = −1.0`. High-confidence headlines pull the score further from zero.
+
+**Negative spike detection** — a ticker is flagged when both conditions hold today:
+
+1. Today's score falls more than `SPIKE_SIGMA` (default 1.5) standard deviations below its 14-day rolling mean.
+2. At least `MIN_NEG_HEADLINES` (default 2) headlines are labeled `negative` with confidence ≥ 0.7.
+
+The first condition requires an unusual drop relative to that ticker's own recent history; the second guards against a single noisy headline tripping the signal. Both thresholds are tunable in `.env`.
+
+The dashboard banner shows **how many holdings are spiking** and links directly to the high-confidence negative headlines responsible.
+
+---
+
+## Troubleshooting
+
+**"No data" or empty ticker cards after a refresh**
+The pipeline only stores aggregates for dates where at least one headline is fetched and scored. If all sources return zero headlines for a ticker on a given day (common on weekends or market holidays), that day simply has no aggregate row. The 14-day chart on the drill-down page will have gaps.
+
+**Urgency banner never fires / always fires**
+Tune `SPIKE_SIGMA` and `MIN_NEG_HEADLINES` in `.env`. Raising `SPIKE_SIGMA` makes the signal harder to trigger; lowering `MIN_NEG_HEADLINES` to 1 makes it easier. You need at least 2 prior aggregate days before the rolling-mean logic can produce any spike at all — run a 7-day Finnhub backfill first.
+
+**FinBERT model download is very slow or fails**
+The model (~440 MB) is fetched from Hugging Face on first run. Set `HF_HUB_OFFLINE=1` after the first successful download to prevent any further network calls to HF. If the download fails mid-way, delete `~/.cache/huggingface/hub/models--ProsusAI--finbert` and re-run.
+
+**Yahoo RSS returns 0 headlines**
+This is expected intermittently — per-ticker Yahoo RSS feeds are unreliable (see Phase 1 notes). `yfinance` is the primary source. Add a Finnhub key for best coverage.
+
+**Port 8780 already in use**
+Change the host port mapping in `docker-compose.yml`: `"8781:8780"` maps container port 8780 to host port 8781.
+
+**Container exits immediately with a torch / CUDA error**
+FinBERT runs on CPU by default. CUDA is not required. If you see a CUDA-related import error, ensure `torch>=2.2.0` was installed without the CUDA extras (the `requirements.txt` installs the CPU-only wheel).
+
+---
+
 ## Status
 
-Phase 1 is functionally complete and paused at validation. Phase 2 implementation has started.
-
-- Done: CLI pipeline, multi-source fetchers, FinBERT scoring, 30-row sanity-check CSV.
-- Done in Phase 2: SQLite schema, persistence helpers, daily aggregate recomputation, initial negative-spike query helper, optional `--db` pipeline persistence, portfolio management script, DB inspection script, Finnhub backfill script, read-side query helpers, daily-run script, local scheduler script.
-- Started in Phase 3: FastAPI service with `/portfolio`, `/portfolio/add`, `/portfolio/remove/{symbol}`, `/summary`, `/ticker/{symbol}`, `/ticker/{symbol}/view`, `/refresh`, `/refresh/status`, `/health`, and dashboard pages for portfolio summary and ticker drill-down. Developer docs are disabled in the local app because they are not part of the user-facing product.
-- UI structure: FastAPI routes in `src/finbrief/app.py`, Jinja templates in `templates/`, and shared styling in `static/styles.css`.
-- Latest dashboard UX: portfolio can be maintained with individual add/remove ticker controls, with bulk comma-separated editing still available for fast resets.
-- Pending for Phase 1 closure: choose and run a validation path.
-- Recommended next validation path: run an objective Financial PhraseBank benchmark, then document the result and caveats.
-
-Validation options:
-
-- **A. Defer hand-labeling:** trust published FinBERT validation for now and revisit after collecting Phase 2 history.
-- **B. Public benchmark:** score a labeled Financial PhraseBank sample and compute accuracy against gold labels. This avoids requiring domain knowledge up front.
-- **C. Manual sanity check:** hand-label `notes/sanity_check_headlines.csv` after reviewing financial-sentiment labeling conventions in `notes/phase1.md`.
+- **Phase 1** complete — CLI pipeline, multi-source fetchers (yfinance primary, Yahoo RSS, Finnhub optional), FinBERT scoring.
+- **Phase 2** complete — SQLite persistence, daily aggregates, negative-spike logic, Finnhub backfill, portfolio and inspection scripts, daily-run and scheduler scripts.
+- **Phase 3** complete — FastAPI dashboard with urgency banner, portfolio add/remove controls, ticker drill-down with 14-day chart, background refresh with browser-side polling.
+- **Phase 4** in progress — retry/backoff on fetchers, env-driven configuration (`SPIKE_SIGMA`, `MIN_NEG_HEADLINES`, `REFRESH_TIME`), Docker deployment.

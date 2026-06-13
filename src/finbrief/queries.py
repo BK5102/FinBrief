@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from finbrief.config import MIN_NEG_HEADLINES, SPIKE_SIGMA
 from finbrief.db import find_negative_spikes, get_negative_headlines, list_active_tickers
 
 
@@ -17,7 +18,11 @@ def get_summary(conn: sqlite3.Connection, aggregate_date: str | None = None) -> 
     active = list_active_tickers(conn)
     target_date = aggregate_date or latest_aggregate_date(conn)
     aggregate_by_ticker = _aggregate_by_ticker(conn, target_date) if target_date else {}
-    spikes = find_negative_spikes(conn, target_date) if target_date else []
+    spikes = (
+        find_negative_spikes(conn, target_date, min_std_drop=SPIKE_SIGMA, min_high_conf_negatives=MIN_NEG_HEADLINES)
+        if target_date
+        else []
+    )
     spike_tickers = {spike["ticker"] for spike in spikes}
 
     holdings = []
