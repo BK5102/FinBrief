@@ -46,5 +46,6 @@ today*.json
 data/
 out/
 
-# Local-only session memory (not for public repo)
+# Local-only session memory and working notes (not for public repo)
 PROMPT.md
+notes/
