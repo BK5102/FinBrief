@@ -1,41 +1,178 @@
 {% extends "base.html" %}
-{% block title %}FinBrief — One-glance morning brief for your portfolio{% endblock %}
+{% block title %}FinBrief — AI-powered morning brief for your portfolio{% endblock %}
 
 {% block content %}
-  <section class="hero">
-    <h1>Your portfolio's morning brief, in one glance.</h1>
-    <p class="hero-sub">FinBrief pulls today's financial news for every stock you hold, scores sentiment with AI, and tells you which ones actually need your attention — so you spend 2 minutes instead of 30.</p>
-    <div class="hero-cta">
-      <a class="button" href="/signup">Get started free</a>
-      <a class="button ghost" href="/login">Log in</a>
+  <!-- Hero -->
+  <div class="hero-section">
+    <canvas id="hero-canvas"></canvas>
+    <div class="hero">
+      <div class="hero-eyebrow">
+        <span class="hero-eyebrow-dot"></span>
+        AI-Powered Sentiment Analysis
+      </div>
+      <h1>Your portfolio's<br><span class="gradient-text">morning brief.</span></h1>
+      <p class="hero-sub">FinBrief pulls today's financial news for every stock you hold, scores sentiment with FinBERT, and surfaces exactly which holdings need your attention — in seconds, not 30 minutes.</p>
+      <div class="hero-cta">
+        <a class="button" href="/signup">Get started free</a>
+        <a class="button ghost" href="/login">Log in</a>
+      </div>
+    </div>
+    <div class="scroll-hint">Scroll</div>
+  </div>
+
+  <!-- Features -->
+  <section class="features-section">
+    <p class="section-eyebrow">What FinBrief does</p>
+    <h2 class="section-title">Everything you need, nothing you don't.</h2>
+    <div class="features">
+      <div class="feature-card">
+        <span class="feature-icon">📋</span>
+        <h3>Portfolio tracking</h3>
+        <p>Add the tickers you hold. FinBrief fetches financial headlines for each one every morning automatically.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🤖</span>
+        <h3>FinBERT sentiment scoring</h3>
+        <p>Every headline is scored by FinBERT — a transformer model trained specifically on financial text, not generic news.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🚨</span>
+        <h3>Daily urgency signal</h3>
+        <p>A banner surfaces which holdings show an unusual negative sentiment spike — and links you directly to the responsible headlines.</p>
+      </div>
     </div>
   </section>
 
-  <section class="features">
-    <div class="feature-card">
-      <div class="feature-icon">📋</div>
-      <h3>Portfolio tracking</h3>
-      <p>Add the tickers you hold. FinBrief fetches financial headlines for each one every morning.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🤖</div>
-      <h3>AI sentiment scoring</h3>
-      <p>Every headline is scored by FinBERT — a model trained specifically on financial text, not general news.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🚨</div>
-      <h3>Urgency signal</h3>
-      <p>A daily banner surfaces which holdings are seeing a negative sentiment spike — with the responsible headlines linked.</p>
-    </div>
-  </section>
-
-  <section class="how-it-works">
-    <h2>How it works</h2>
+  <!-- How it works -->
+  <section class="hiw-section">
+    <p class="section-eyebrow">How it works</p>
+    <h2 class="section-title" style="max-width:100%">Four steps, zero manual work.</h2>
     <ol class="steps">
-      <li><strong>Add your tickers</strong> — type in the stocks you hold.</li>
-      <li><strong>FinBrief fetches news daily</strong> — from Yahoo Finance, yfinance, and Finnhub.</li>
-      <li><strong>FinBERT scores each headline</strong> — positive, neutral, or negative with a confidence weight.</li>
-      <li><strong>You see what matters</strong> — urgency banner flags unusual negative days; drill down for details.</li>
+      <li>
+        <span class="step-num">01</span>
+        <div class="step-body">
+          <strong>Add your tickers</strong>
+          <p>Type in the stocks you hold. Your portfolio is saved and used in every daily run.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-num">02</span>
+        <div class="step-body">
+          <strong>FinBrief fetches news daily</strong>
+          <p>From Yahoo Finance, yfinance, and Finnhub — across multiple sources for better coverage.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-num">03</span>
+        <div class="step-body">
+          <strong>FinBERT scores every headline</strong>
+          <p>Each headline is classified positive, neutral, or negative — weighted by model confidence.</p>
+        </div>
+      </li>
+      <li>
+        <span class="step-num">04</span>
+        <div class="step-body">
+          <strong>You see what matters</strong>
+          <p>The urgency banner flags abnormal negative days. Click any ticker for headline-level detail.</p>
+        </div>
+      </li>
     </ol>
   </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const canvas = document.getElementById('hero-canvas');
+  if (!canvas || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  // Lightweight pure-canvas particle network — no Three.js dependency needed
+  const ctx = canvas.getContext('2d');
+  let W, H;
+
+  function resize() {
+    W = canvas.width  = canvas.parentElement.offsetWidth;
+    H = canvas.height = canvas.parentElement.offsetHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const N = 90;
+  const SPEED = 0.28;
+  const CONNECT_DIST = 130;
+  const COLOR = '0, 217, 126';
+
+  const pts = Array.from({ length: N }, () => ({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    vx: (Math.random() - 0.5) * SPEED,
+    vy: (Math.random() - 0.5) * SPEED,
+    r: Math.random() * 1.6 + 0.6,
+  }));
+
+  let mx = W / 2, my = H / 2;
+  canvas.parentElement.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    mx = e.clientX - rect.left;
+    my = e.clientY - rect.top;
+  });
+
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Move
+    for (const p of pts) {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < 0 || p.x > W) p.vx *= -1;
+      if (p.y < 0 || p.y > H) p.vy *= -1;
+    }
+
+    // Lines
+    for (let i = 0; i < N; i++) {
+      for (let j = i + 1; j < N; j++) {
+        const dx = pts[i].x - pts[j].x;
+        const dy = pts[i].y - pts[j].y;
+        const d  = Math.sqrt(dx * dx + dy * dy);
+        if (d < CONNECT_DIST) {
+          const alpha = (1 - d / CONNECT_DIST) * 0.18;
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(${COLOR}, ${alpha})`;
+          ctx.lineWidth = 1;
+          ctx.moveTo(pts[i].x, pts[i].y);
+          ctx.lineTo(pts[j].x, pts[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Mouse connections
+    for (const p of pts) {
+      const dx = p.x - mx;
+      const dy = p.y - my;
+      const d  = Math.sqrt(dx * dx + dy * dy);
+      if (d < 160) {
+        const alpha = (1 - d / 160) * 0.35;
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(${COLOR}, ${alpha})`;
+        ctx.lineWidth = 1;
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(mx, my);
+        ctx.stroke();
+      }
+    }
+
+    // Dots
+    for (const p of pts) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${COLOR}, 0.65)`;
+      ctx.fill();
+    }
+
+    requestAnimationFrame(frame);
+  }
+  frame();
+})();
+</script>
 {% endblock %}
