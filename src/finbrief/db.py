@@ -27,17 +27,31 @@ def connect(path: str | Path) -> sqlite3.Connection:
 
 
 def init_db(conn: sqlite3.Connection) -> None:
+    if _is_old_schema(conn):
+        _drop_old_schema(conn)
+
     conn.executescript(
         """
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS tickers (
-            symbol TEXT PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            symbol TEXT NOT NULL,
             active INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+            updated_at TEXT NOT NULL,
+            UNIQUE(user_id, symbol)
         );
 
         CREATE TABLE IF NOT EXISTS pipeline_runs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
             started_at TEXT NOT NULL,
             completed_at TEXT,
             status TEXT NOT NULL,
@@ -51,18 +65,20 @@ def init_db(conn: sqlite3.Connection) -> None:
 
         CREATE TABLE IF NOT EXISTS headlines (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ticker TEXT NOT NULL REFERENCES tickers(symbol),
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            ticker TEXT NOT NULL,
             title TEXT NOT NULL,
             summary TEXT NOT NULL DEFAULT '',
             url TEXT NOT NULL DEFAULT '',
             source TEXT NOT NULL,
             published_at TEXT NOT NULL,
             fetched_at TEXT NOT NULL,
-            fingerprint TEXT NOT NULL UNIQUE
+            fingerprint TEXT NOT NULL,
+            UNIQUE(user_id, fingerprint)
         );
 
-        CREATE INDEX IF NOT EXISTS idx_headlines_ticker_published
-            ON headlines(ticker, published_at);
+        CREATE INDEX IF NOT EXISTS idx_headlines_user_ticker_published
+            ON headlines(user_id, ticker, published_at);
 
         CREATE TABLE IF NOT EXISTS scores (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +93,8 @@ def init_db(conn: sqlite3.Connection) -> None:
         );
 
         CREATE TABLE IF NOT EXISTS daily_aggregates (
-            ticker TEXT NOT NULL REFERENCES tickers(symbol),
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            ticker TEXT NOT NULL,
             aggregate_date TEXT NOT NULL,
             headline_count INTEGER NOT NULL,
             weighted_score REAL NOT NULL,
@@ -87,52 +104,94 @@ def init_db(conn: sqlite3.Connection) -> None:
             high_conf_negative_count INTEGER NOT NULL,
             avg_confidence REAL NOT NULL,
             updated_at TEXT NOT NULL,
-            PRIMARY KEY (ticker, aggregate_date)
+            PRIMARY KEY (user_id, ticker, aggregate_date)
         );
         """
     )
     conn.commit()
 
 
-def upsert_tickers(conn: sqlite3.Connection, tickers: Iterable[str]) -> None:
+# --- User helpers ---
+
+def create_user(conn: sqlite3.Connection, email: str, password_hash: str) -> int:
+    init_db(conn)
+    cur = conn.execute(
+        "INSERT INTO users(email, password_hash, created_at) VALUES (?, ?, ?)",
+        (email.lower().strip(), password_hash, _now_iso()),
+    )
+    conn.commit()
+    return int(cur.lastrowid)
+
+
+def get_user_by_email(conn: sqlite3.Connection, email: str) -> dict | None:
+    init_db(conn)
+    row = conn.execute(
+        "SELECT id, email, password_hash FROM users WHERE email = ?",
+        (email.lower().strip(),),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def get_user_by_id(conn: sqlite3.Connection, user_id: int) -> dict | None:
+    row = conn.execute(
+        "SELECT id, email FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def get_all_active_user_ids(conn: sqlite3.Connection) -> list[int]:
+    """Return all user IDs that have at least one active ticker."""
+    rows = conn.execute(
+        "SELECT DISTINCT user_id FROM tickers WHERE active = 1"
+    ).fetchall()
+    return [int(row["user_id"]) for row in rows]
+
+
+# --- Portfolio helpers ---
+
+def upsert_tickers(conn: sqlite3.Connection, tickers: Iterable[str], user_id: int) -> None:
     now = _now_iso()
-    rows = [(ticker.strip().upper(), now, now) for ticker in tickers if ticker.strip()]
+    rows = [(user_id, ticker.strip().upper(), now, now) for ticker in tickers if ticker.strip()]
     conn.executemany(
         """
-        INSERT INTO tickers(symbol, active, created_at, updated_at)
-        VALUES (?, 1, ?, ?)
-        ON CONFLICT(symbol) DO UPDATE SET active = 1, updated_at = excluded.updated_at
+        INSERT INTO tickers(user_id, symbol, active, created_at, updated_at)
+        VALUES (?, ?, 1, ?, ?)
+        ON CONFLICT(user_id, symbol) DO UPDATE SET active = 1, updated_at = excluded.updated_at
         """,
         rows,
     )
 
 
-def set_active_tickers(conn: sqlite3.Connection, tickers: Iterable[str]) -> list[str]:
-    """Replace the active portfolio with the provided ticker list."""
+def set_active_tickers(conn: sqlite3.Connection, tickers: Iterable[str], user_id: int) -> list[str]:
     normalized = _normalize_tickers(tickers)
     now = _now_iso()
-    conn.execute("UPDATE tickers SET active = 0, updated_at = ?", (now,))
-    upsert_tickers(conn, normalized)
+    conn.execute("UPDATE tickers SET active = 0, updated_at = ? WHERE user_id = ?", (now, user_id))
+    upsert_tickers(conn, normalized, user_id)
     conn.commit()
     return normalized
 
 
-def deactivate_tickers(conn: sqlite3.Connection, tickers: Iterable[str]) -> list[str]:
+def deactivate_tickers(conn: sqlite3.Connection, tickers: Iterable[str], user_id: int) -> list[str]:
     normalized = _normalize_tickers(tickers)
     now = _now_iso()
     conn.executemany(
-        "UPDATE tickers SET active = 0, updated_at = ? WHERE symbol = ?",
-        [(now, ticker) for ticker in normalized],
+        "UPDATE tickers SET active = 0, updated_at = ? WHERE user_id = ? AND symbol = ?",
+        [(now, user_id, ticker) for ticker in normalized],
     )
     conn.commit()
     return normalized
 
 
-def list_active_tickers(conn: sqlite3.Connection) -> list[str]:
+def list_active_tickers(conn: sqlite3.Connection, user_id: int) -> list[str]:
     init_db(conn)
-    rows = conn.execute("SELECT symbol FROM tickers WHERE active = 1 ORDER BY symbol").fetchall()
+    rows = conn.execute(
+        "SELECT symbol FROM tickers WHERE user_id = ? AND active = 1 ORDER BY symbol",
+        (user_id,),
+    ).fetchall()
     return [str(row["symbol"]) for row in rows]
 
+
+# --- Pipeline persistence ---
 
 def persist_pipeline_result(
     conn: sqlite3.Connection,
@@ -140,24 +199,25 @@ def persist_pipeline_result(
     headlines: Sequence[Headline],
     scores: Sequence[dict],
     timings_seconds: dict[str, float],
+    user_id: int,
 ) -> int:
-    """Persist a completed pipeline run and recompute aggregates for touched ticker-days."""
     if len(headlines) != len(scores):
         raise ValueError("headlines and scores must have the same length")
 
     init_db(conn)
-    upsert_tickers(conn, tickers)
+    upsert_tickers(conn, tickers, user_id)
     now = _now_iso()
 
     cur = conn.execute(
         """
         INSERT INTO pipeline_runs(
-            started_at, completed_at, status, tickers_json,
+            user_id, started_at, completed_at, status, tickers_json,
             articles_fetched, articles_scored, fetch_seconds, score_seconds
         )
-        VALUES (?, ?, 'success', ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, 'success', ?, ?, ?, ?, ?)
         """,
         (
+            user_id,
             now,
             now,
             json.dumps(list(tickers)),
@@ -171,25 +231,30 @@ def persist_pipeline_result(
 
     touched: set[tuple[str, str]] = set()
     for headline, score in zip(headlines, scores):
-        headline_id = upsert_headline(conn, headline, fetched_at=now)
+        headline_id = upsert_headline(conn, headline, user_id=user_id, fetched_at=now)
         upsert_score(conn, headline_id, score, scored_at=now)
         touched.add((headline.ticker.upper(), _date_part(headline.published_at)))
 
     for ticker, aggregate_date in touched:
-        recompute_daily_aggregate(conn, ticker, aggregate_date)
+        recompute_daily_aggregate(conn, ticker, aggregate_date, user_id)
 
     conn.commit()
     return run_id
 
 
-def upsert_headline(conn: sqlite3.Connection, headline: Headline, fetched_at: str | None = None) -> int:
+def upsert_headline(
+    conn: sqlite3.Connection,
+    headline: Headline,
+    user_id: int,
+    fetched_at: str | None = None,
+) -> int:
     fetched_at = fetched_at or _now_iso()
     fingerprint = headline_fingerprint(headline)
     conn.execute(
         """
-        INSERT INTO headlines(ticker, title, summary, url, source, published_at, fetched_at, fingerprint)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(fingerprint) DO UPDATE SET
+        INSERT INTO headlines(user_id, ticker, title, summary, url, source, published_at, fetched_at, fingerprint)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, fingerprint) DO UPDATE SET
             summary = excluded.summary,
             url = excluded.url,
             source = excluded.source,
@@ -197,6 +262,7 @@ def upsert_headline(conn: sqlite3.Connection, headline: Headline, fetched_at: st
             fetched_at = excluded.fetched_at
         """,
         (
+            user_id,
             headline.ticker.upper(),
             headline.title,
             headline.summary,
@@ -207,7 +273,10 @@ def upsert_headline(conn: sqlite3.Connection, headline: Headline, fetched_at: st
             fingerprint,
         ),
     )
-    row = conn.execute("SELECT id FROM headlines WHERE fingerprint = ?", (fingerprint,)).fetchone()
+    row = conn.execute(
+        "SELECT id FROM headlines WHERE user_id = ? AND fingerprint = ?",
+        (user_id, fingerprint),
+    ).fetchone()
     return int(row["id"])
 
 
@@ -243,22 +312,25 @@ def upsert_score(conn: sqlite3.Connection, headline_id: int, score: dict, scored
     )
 
 
-def recompute_daily_aggregate(conn: sqlite3.Connection, ticker: str, aggregate_date: str) -> None:
+def recompute_daily_aggregate(
+    conn: sqlite3.Connection, ticker: str, aggregate_date: str, user_id: int
+) -> None:
     rows = conn.execute(
         """
         SELECT s.label, s.confidence
         FROM headlines h
         JOIN scores s ON s.headline_id = h.id
-        WHERE h.ticker = ?
+        WHERE h.user_id = ?
+          AND h.ticker = ?
           AND substr(h.published_at, 1, 10) = ?
         """,
-        (ticker.upper(), aggregate_date),
+        (user_id, ticker.upper(), aggregate_date),
     ).fetchall()
 
     if not rows:
         conn.execute(
-            "DELETE FROM daily_aggregates WHERE ticker = ? AND aggregate_date = ?",
-            (ticker.upper(), aggregate_date),
+            "DELETE FROM daily_aggregates WHERE user_id = ? AND ticker = ? AND aggregate_date = ?",
+            (user_id, ticker.upper(), aggregate_date),
         )
         return
 
@@ -283,12 +355,12 @@ def recompute_daily_aggregate(conn: sqlite3.Connection, ticker: str, aggregate_d
     conn.execute(
         """
         INSERT INTO daily_aggregates(
-            ticker, aggregate_date, headline_count, weighted_score,
+            user_id, ticker, aggregate_date, headline_count, weighted_score,
             positive_count, neutral_count, negative_count, high_conf_negative_count,
             avg_confidence, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(ticker, aggregate_date) DO UPDATE SET
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, ticker, aggregate_date) DO UPDATE SET
             headline_count = excluded.headline_count,
             weighted_score = excluded.weighted_score,
             positive_count = excluded.positive_count,
@@ -299,6 +371,7 @@ def recompute_daily_aggregate(conn: sqlite3.Connection, ticker: str, aggregate_d
             updated_at = excluded.updated_at
         """,
         (
+            user_id,
             ticker.upper(),
             aggregate_date,
             headline_count,
@@ -316,18 +389,14 @@ def recompute_daily_aggregate(conn: sqlite3.Connection, ticker: str, aggregate_d
 def find_negative_spikes(
     conn: sqlite3.Connection,
     aggregate_date: str,
+    user_id: int,
     min_std_drop: float = 1.5,
     min_high_conf_negatives: int = 2,
     lookback_days: int = 14,
 ) -> list[dict]:
-    """Return tickers whose daily score is unusually negative vs prior aggregate history."""
     today_rows = conn.execute(
-        """
-        SELECT *
-        FROM daily_aggregates
-        WHERE aggregate_date = ?
-        """,
-        (aggregate_date,),
+        "SELECT * FROM daily_aggregates WHERE user_id = ? AND aggregate_date = ?",
+        (user_id, aggregate_date),
     ).fetchall()
 
     spikes: list[dict] = []
@@ -339,19 +408,18 @@ def find_negative_spikes(
             """
             SELECT weighted_score
             FROM daily_aggregates
-            WHERE ticker = ?
-              AND aggregate_date < ?
+            WHERE user_id = ? AND ticker = ? AND aggregate_date < ?
             ORDER BY aggregate_date DESC
             LIMIT ?
             """,
-            (today["ticker"], aggregate_date, lookback_days),
+            (user_id, today["ticker"], aggregate_date, lookback_days),
         ).fetchall()
         values = [float(row["weighted_score"]) for row in history]
         if len(values) < 2:
             continue
 
         mean = sum(values) / len(values)
-        variance = sum((value - mean) ** 2 for value in values) / (len(values) - 1)
+        variance = sum((v - mean) ** 2 for v in values) / (len(values) - 1)
         std = math.sqrt(variance)
         threshold = mean - (min_std_drop * std)
         score = float(today["weighted_score"])
@@ -375,6 +443,7 @@ def get_negative_headlines(
     conn: sqlite3.Connection,
     ticker: str,
     aggregate_date: str,
+    user_id: int,
     min_confidence: float = 0.7,
 ) -> list[dict]:
     rows = conn.execute(
@@ -382,13 +451,14 @@ def get_negative_headlines(
         SELECT h.title, h.url, h.source, h.published_at, s.label, s.confidence
         FROM headlines h
         JOIN scores s ON s.headline_id = h.id
-        WHERE h.ticker = ?
+        WHERE h.user_id = ?
+          AND h.ticker = ?
           AND substr(h.published_at, 1, 10) = ?
           AND s.label = 'negative'
           AND s.confidence >= ?
         ORDER BY s.confidence DESC, h.published_at DESC
         """,
-        (ticker.upper(), aggregate_date, min_confidence),
+        (user_id, ticker.upper(), aggregate_date, min_confidence),
     ).fetchall()
     return [dict(row) for row in rows]
 
@@ -396,6 +466,29 @@ def get_negative_headlines(
 def headline_fingerprint(headline: Headline) -> str:
     basis = headline_dedupe_key(headline)
     return hashlib.sha256(basis.encode("utf-8")).hexdigest()
+
+
+def _is_old_schema(conn: sqlite3.Connection) -> bool:
+    has_tables = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('tickers','headlines')"
+    ).fetchone()
+    has_users = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+    ).fetchone()
+    return has_tables is not None and has_users is None
+
+
+def _drop_old_schema(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        DROP TABLE IF EXISTS daily_aggregates;
+        DROP TABLE IF EXISTS scores;
+        DROP TABLE IF EXISTS headlines;
+        DROP TABLE IF EXISTS pipeline_runs;
+        DROP TABLE IF EXISTS tickers;
+        """
+    )
+    conn.commit()
 
 
 def _date_part(iso_datetime: str) -> str:

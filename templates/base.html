@@ -8,11 +8,22 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+  <nav class="navbar">
+    <a class="brand" href="/">FinBrief</a>
+    <div class="nav-links">
+      {% if current_user %}
+        <a href="/">Dashboard</a>
+        <span class="nav-email meta">{{ current_user.email }}</span>
+        <form method="post" action="/logout" class="inline-form">
+          <button class="button ghost nav-btn" type="submit">Sign out</button>
+        </form>
+      {% else %}
+        <a href="/login">Log in</a>
+        <a class="button nav-btn" href="/signup">Sign up</a>
+      {% endif %}
+    </div>
+  </nav>
   <main>
-    <header class="page-header">
-      <a class="brand" href="/">FinBrief</a>
-      <span class="meta">{% block subtitle %}Morning brief{% endblock %}</span>
-    </header>
     {% block content %}{% endblock %}
   </main>
   {% block scripts %}{% endblock %}

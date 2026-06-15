@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 FINBRIEF_DB: Path = Path(os.getenv("FINBRIEF_DB", "data/finbrief.db"))
+SECRET_KEY: str = os.getenv("SECRET_KEY", "change-me-in-production")
 FINNHUB_API_KEY: str | None = os.getenv("FINNHUB_API_KEY") or None
 REFRESH_TIME: str = os.getenv("REFRESH_TIME", "07:00")
 

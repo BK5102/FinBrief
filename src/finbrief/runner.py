@@ -16,9 +16,10 @@ def run_pipeline_cycle(
     tickers: Sequence[str] | None = None,
     db_path: str | Path | None = None,
     finnhub_key: str | None = None,
+    user_id: int | None = None,
 ) -> dict:
     """Fetch, score, optionally persist, and return the standard pipeline output."""
-    resolved_tickers = _resolve_tickers(tickers, db_path)
+    resolved_tickers = _resolve_tickers(tickers, db_path, user_id)
 
     t0 = time.perf_counter()
     headlines = fetch_all_today(resolved_tickers, finnhub_key=finnhub_key)
@@ -40,26 +41,31 @@ def run_pipeline_cycle(
         "headlines_by_ticker": by_ticker,
     }
 
-    if db_path:
+    if db_path and user_id is not None:
         with connect(db_path) as conn:
-            run_id = persist_pipeline_result(conn, resolved_tickers, headlines, scores, output["timings_seconds"])
+            run_id = persist_pipeline_result(
+                conn, resolved_tickers, headlines, scores, output["timings_seconds"], user_id
+            )
         output["db"] = {"path": str(db_path), "pipeline_run_id": run_id}
 
     return output
 
 
 def score_text(headline: Headline) -> str:
-    """FinBERT sees title; summary appended if present."""
     if headline.summary and headline.summary.lower() not in headline.title.lower():
         return f"{headline.title}. {headline.summary}"
     return headline.title
 
 
-def _resolve_tickers(tickers: Sequence[str] | None, db_path: str | Path | None) -> list[str]:
+def _resolve_tickers(
+    tickers: Sequence[str] | None,
+    db_path: str | Path | None,
+    user_id: int | None,
+) -> list[str]:
     normalized = _normalize_tickers(tickers or [])
-    if not normalized and db_path:
+    if not normalized and db_path and user_id is not None:
         with connect(db_path) as conn:
-            normalized = list_active_tickers(conn)
+            normalized = list_active_tickers(conn, user_id)
     if not normalized:
         raise ValueError("tickers must contain at least one symbol, unless db_path contains active tickers")
     return normalized

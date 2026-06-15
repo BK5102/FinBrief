@@ -1,9 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}FinBrief{% endblock %}
-{% block subtitle %}Morning brief - {{ summary.aggregate_date or "no data" }}{% endblock %}
+{% block title %}Dashboard — FinBrief{% endblock %}
 
 {% block content %}
+  <div class="page-header">
+    <h2>Morning brief</h2>
+    <span class="meta">{{ summary.aggregate_date or "no data yet" }}</span>
+  </div>
   {% if summary.negative_spike_count %}
     <section class="banner danger">
       <div><strong>{{ summary.negative_spike_count }} of {{ summary.active_tickers|length }} holdings</strong> show negative sentiment spikes for {{ summary.aggregate_date }}.</div>

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}FinBrief — One-glance morning brief for your portfolio{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <h1>Your portfolio's morning brief, in one glance.</h1>
+    <p class="hero-sub">FinBrief pulls today's financial news for every stock you hold, scores sentiment with AI, and tells you which ones actually need your attention — so you spend 2 minutes instead of 30.</p>
+    <div class="hero-cta">
+      <a class="button" href="/signup">Get started free</a>
+      <a class="button ghost" href="/login">Log in</a>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feature-card">
+      <div class="feature-icon">📋</div>
+      <h3>Portfolio tracking</h3>
+      <p>Add the tickers you hold. FinBrief fetches financial headlines for each one every morning.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🤖</div>
+      <h3>AI sentiment scoring</h3>
+      <p>Every headline is scored by FinBERT — a model trained specifically on financial text, not general news.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🚨</div>
+      <h3>Urgency signal</h3>
+      <p>A daily banner surfaces which holdings are seeing a negative sentiment spike — with the responsible headlines linked.</p>
+    </div>
+  </section>
+
+  <section class="how-it-works">
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li><strong>Add your tickers</strong> — type in the stocks you hold.</li>
+      <li><strong>FinBrief fetches news daily</strong> — from Yahoo Finance, yfinance, and Finnhub.</li>
+      <li><strong>FinBERT scores each headline</strong> — positive, neutral, or negative with a confidence weight.</li>
+      <li><strong>You see what matters</strong> — urgency banner flags unusual negative days; drill down for details.</li>
+    </ol>
+  </section>
+{% endblock %}

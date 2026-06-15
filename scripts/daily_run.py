@@ -1,4 +1,4 @@
-"""Run one daily FinBrief ingest/scoring/persistence cycle."""
+"""Run one daily FinBrief ingest/scoring/persistence cycle for all active users."""
 
 from __future__ import annotations
 
@@ -22,51 +22,57 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from finbrief.db import connect, get_all_active_user_ids
 from finbrief.runner import run_pipeline_cycle
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run one FinBrief daily pipeline cycle")
-    parser.add_argument("--db", type=Path, default=Path("data/finbrief.db"), help="SQLite database path")
-    parser.add_argument("--tickers", help="Comma-separated ticker symbols. Defaults to active DB portfolio.")
-    parser.add_argument("--log", type=Path, default=Path("logs/daily_runs.jsonl"), help="JSONL run log path")
+    parser.add_argument("--db", type=Path, default=Path("data/finbrief.db"))
+    parser.add_argument("--user-id", type=int, default=None, help="Run for a specific user only")
+    parser.add_argument("--log", type=Path, default=Path("logs/daily_runs.jsonl"))
     args = parser.parse_args(argv)
 
     load_dotenv()
-    started_at = datetime.now(timezone.utc).isoformat()
     finnhub_key = os.getenv("FINNHUB_API_KEY") or None
 
-    try:
-        tickers = _split_tickers(args.tickers) if args.tickers else []
-        output = run_pipeline_cycle(tickers=tickers, db_path=args.db, finnhub_key=finnhub_key)
+    with connect(args.db) as conn:
+        user_ids = [args.user_id] if args.user_id else get_all_active_user_ids(conn)
 
-        event = {
-            "status": "success",
-            "run_id": output.get("db", {}).get("pipeline_run_id"),
-            "started_at": started_at,
-            "completed_at": datetime.now(timezone.utc).isoformat(),
-            "tickers": output["tickers"],
-            "articles_fetched": sum(output["counts"].values()),
-            "articles_scored": sum(output["counts"].values()),
-            "timings_seconds": output["timings_seconds"],
-        }
-        _write_log(args.log, event)
-        print(json.dumps(event, indent=2))
+    if not user_ids:
+        print(json.dumps({"status": "skipped", "reason": "no active users"}))
         return 0
-    except Exception as exc:
-        event = {
-            "status": "failure",
-            "started_at": started_at,
-            "completed_at": datetime.now(timezone.utc).isoformat(),
-            "error": str(exc),
-        }
-        _write_log(args.log, event)
-        print(json.dumps(event, indent=2), file=sys.stderr)
-        return 1
 
+    exit_code = 0
+    for user_id in user_ids:
+        started_at = datetime.now(timezone.utc).isoformat()
+        try:
+            output = run_pipeline_cycle(db_path=args.db, finnhub_key=finnhub_key, user_id=user_id)
+            event = {
+                "status": "success",
+                "user_id": user_id,
+                "run_id": output.get("db", {}).get("pipeline_run_id"),
+                "started_at": started_at,
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "tickers": output["tickers"],
+                "articles_fetched": sum(output["counts"].values()),
+                "timings_seconds": output["timings_seconds"],
+            }
+            _write_log(args.log, event)
+            print(json.dumps(event, indent=2))
+        except Exception as exc:
+            event = {
+                "status": "failure",
+                "user_id": user_id,
+                "started_at": started_at,
+                "completed_at": datetime.now(timezone.utc).isoformat(),
+                "error": str(exc),
+            }
+            _write_log(args.log, event)
+            print(json.dumps(event, indent=2), file=sys.stderr)
+            exit_code = 1
 
-def _split_tickers(raw: str) -> list[str]:
-    return [ticker.strip().upper() for ticker in raw.split(",") if ticker.strip()]
+    return exit_code
 
 
 def _write_log(path: Path, event: dict) -> None:
