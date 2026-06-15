@@ -160,7 +160,15 @@ def home(request: Request):
 
 @app.get("/ticker/{symbol}/view")
 def ticker_page(request: Request, symbol: str, date: str | None = None):
-    detail = _ticker_detail(symbol, date)
+    try:
+        detail = _ticker_detail(symbol, date)
+    except HTTPException:
+        return TEMPLATES.TemplateResponse(
+            request,
+            "ticker.html",
+            {"detail": {"ticker": symbol.upper(), "aggregate_date": None, "aggregates": [], "headlines": []}, "chart": _chart_points([]), "aggregate_rows": []},
+            status_code=404,
+        )
     return TEMPLATES.TemplateResponse(
         request,
         "ticker.html",

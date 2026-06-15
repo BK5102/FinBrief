@@ -58,7 +58,7 @@
         <p>{{ headline.summary }}</p>
       </article>
     {% else %}
-      <p>No headlines for the latest aggregate date.</p>
+      <p class="meta">No headlines yet for {{ detail.ticker }}. Run a refresh from the dashboard to fetch today's news.</p>
     {% endfor %}
   </section>
 {% endblock %}

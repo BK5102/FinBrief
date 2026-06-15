@@ -65,13 +65,16 @@
         data-running="{{ 'true' if refresh.running else 'false' }}"
       >
         {% if refresh.running %}
-          Refresh running since {{ refresh.started_at }}.
+          Refresh running since {{ refresh.started_at }} — fetching and scoring headlines…
         {% elif refresh.status == "success" %}
-          Last manual refresh completed at {{ refresh.completed_at }}.
+          {% set r = refresh.result %}
+          Last refresh at {{ refresh.completed_at[:19].replace("T", " ") }} UTC —
+          {{ r.counts.values()|sum }} new headlines across {{ r.tickers|length }} ticker{{ "s" if r.tickers|length != 1 else "" }}
+          ({{ r.tickers|join(", ") }}).
         {% elif refresh.status == "failure" %}
-          Last manual refresh failed: {{ refresh.error }}
+          Last refresh failed: {{ refresh.error }}
         {% else %}
-          Manual refresh is idle.
+          No manual refresh run yet — click Run Refresh to fetch today's headlines.
         {% endif %}
       </p>
     </div>
@@ -86,20 +89,21 @@
 
   <section class="grid" aria-label="Ticker summary cards">
     {% for holding in holding_cards %}
-      <a class="card {{ holding.tone }}" href="/ticker/{{ holding.ticker }}/view">
+      {% set tag = "a" if holding.has_data else "div" %}
+      <{{ tag }} class="card {{ holding.tone }}"{% if holding.has_data %} href="/ticker/{{ holding.ticker }}/view"{% endif %}>
         <div class="card-head">
           <h2>{{ holding.ticker }}</h2>
           {% if holding.is_negative_spike %}<span class="flag">Spike</span>{% endif %}
         </div>
         {% if holding.aggregate %}
           <p class="score">{{ holding.score_text }}</p>
-          <p>{{ holding.aggregate.headline_count }} headlines</p>
+          <p>{{ holding.aggregate.headline_count }} headline{{ "s" if holding.aggregate.headline_count != 1 else "" }}</p>
           <p>{{ holding.aggregate.positive_count }}/{{ holding.aggregate.neutral_count }}/{{ holding.aggregate.negative_count }} pos/neu/neg</p>
           <p>{{ holding.aggregate.high_conf_negative_count }} high-confidence negative</p>
         {% else %}
-          <p>No headlines for {{ summary.aggregate_date or "latest date" }}</p>
+          <p class="meta">No headlines yet — run a refresh to fetch today's news.</p>
         {% endif %}
-      </a>
+      </{{ tag }}>
     {% endfor %}
   </section>
 
@@ -117,7 +121,7 @@
   <section class="panel">
     <h3>Recent Runs</h3>
     <table>
-      <thead><tr><th>ID</th><th>Completed</th><th>Status</th><th>Fetched</th><th>Scored</th><th>Fetch</th><th>Score</th></tr></thead>
+      <thead><tr><th>ID</th><th>Completed</th><th>Status</th><th>Headlines fetched</th><th>Headlines scored</th><th>Fetch time</th><th>Score time</th></tr></thead>
       <tbody>
         {% for run in recent_runs %}
           <tr>
